@@ -1,0 +1,227 @@
+
+<div>
+  <h2 style="margin-bottom:0.5rem">Mon Portefeuille</h2>
+  <p style="margin-bottom:2rem">Dépôt et retrait via Mobile Money</p>
+
+  <!-- SOLDE -->
+  @if (wallet()) {
+    <div class="card" style="margin-bottom:2rem;background:var(--color-primary);
+      border-color:var(--color-primary);text-align:center;padding:2rem">
+      <div style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:0.5rem">
+        Solde disponible
+      </div>
+      <div style="color:white;font-size:2.5rem;font-weight:900">
+        {{ wallet()!.soldeDisponible | number:'1.0-0' }} XAF
+      </div>
+    </div>
+  }
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+    <!-- DÉPÔT -->
+    <div class="card">
+      <h3 style="margin-bottom:1.5rem">⬇️ Déposer de l'argent</h3>
+      <p style="font-size:0.85rem;color:var(--color-muted);margin-bottom:1rem">
+        Minimum : <strong>500 XAF</strong> — Aucune commission sur les dépôts
+      </p>
+
+      <!-- CHOIX OPÉRATEUR -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+
+        <!-- MTN -->
+        <button type="button"
+          [class]="operateurDepot()==='MTN_MOMO'
+            ? 'op-btn op-btn-selected' : 'op-btn'"
+          (click)="operateurDepot.set('MTN_MOMO')">
+          <div class="op-logo mtn">MTN</div>
+          <span>MoMo</span>
+        </button>
+
+        <!-- ORANGE -->
+        <button type="button"
+          [class]="operateurDepot()==='ORANGE_MONEY'
+            ? 'op-btn op-btn-selected' : 'op-btn'"
+          (click)="operateurDepot.set('ORANGE_MONEY')">
+          <div class="op-logo orange">OM</div>
+          <span>Orange Money</span>
+        </button>
+
+      </div>
+
+      <form [formGroup]="depotForm" (ngSubmit)="deposer()">
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Numéro de téléphone</label>
+          <input type="tel" class="field"
+            formControlName="numeroTelephone"
+            placeholder="ex: 650000000"/>
+        </div>
+        <div class="form-group" style="margin-bottom:1.5rem">
+          <label>Montant (XAF)</label>
+          <input type="number" class="field"
+            formControlName="montant"
+            placeholder="Minimum 500 XAF"/>
+        </div>
+        @if (depotError()) {
+          <div class="alert alert-error" style="margin-bottom:1rem">
+            {{ depotError() }}
+          </div>
+        }
+        @if (depotSuccess()) {
+          <div class="alert alert-success" style="margin-bottom:1rem">
+            {{ depotSuccess() }}
+          </div>
+        }
+        <button type="submit" class="btn btn-success btn-full"
+          [disabled]="depotLoading() || depotForm.invalid">
+          {{ depotLoading() ? 'Traitement...' : 'Confirmer le dépôt' }}
+        </button>
+      </form>
+    </div>
+
+    <!-- RETRAIT -->
+    <div class="card">
+      <h3 style="margin-bottom:1.5rem">⬆️ Retirer de l'argent</h3>
+      <p style="font-size:0.85rem;color:var(--color-muted);margin-bottom:1rem">
+        Minimum : <strong>1 000 XAF</strong> —
+        Commission retrait : <strong>10%</strong>
+      </p>
+
+      <!-- CHOIX OPÉRATEUR -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+
+        <button type="button"
+          [class]="operateurRetrait()==='MTN_MOMO'
+            ? 'op-btn op-btn-selected' : 'op-btn'"
+          (click)="operateurRetrait.set('MTN_MOMO')">
+          <div class="op-logo mtn">MTN</div>
+          <span>MoMo</span>
+        </button>
+
+        <button type="button"
+          [class]="operateurRetrait()==='ORANGE_MONEY'
+            ? 'op-btn op-btn-selected' : 'op-btn'"
+          (click)="operateurRetrait.set('ORANGE_MONEY')">
+          <div class="op-logo orange">OM</div>
+          <span>Orange Money</span>
+        </button>
+
+      </div>
+
+      <form [formGroup]="retraitForm" (ngSubmit)="retirer()">
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Numéro de téléphone</label>
+          <input type="tel" class="field"
+            formControlName="numeroTelephone"
+            placeholder="ex: 650000000"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0.5rem">
+          <label>Montant à retirer (XAF)</label>
+          <input type="number" class="field"
+            formControlName="montant"
+            placeholder="Minimum 1000 XAF"
+            (input)="calculerMontantNet()"/>
+        </div>
+
+        <!-- APERÇU COMMISSION -->
+        @if (montantNet() > 0) {
+          <div style="background:#FEF3C7;border:1px solid #FDE68A;
+            border-radius:8px;padding:0.75rem;margin-bottom:1rem;
+            font-size:0.85rem">
+            <div style="display:flex;justify-content:space-between">
+              <span>Montant demandé</span>
+              <strong>{{ retraitForm.value.montant | number:'1.0-0' }} XAF</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;color:#92400E">
+              <span>Commission 10%</span>
+              <strong>- {{ commission() | number:'1.0-0' }} XAF</strong>
+            </div>
+            <hr style="margin:0.5rem 0;border-color:#FDE68A">
+            <div style="display:flex;justify-content:space-between;
+              color:#065F46;font-weight:700">
+              <span>Vous recevez</span>
+              <strong>{{ montantNet() | number:'1.0-0' }} XAF</strong>
+            </div>
+          </div>
+        }
+
+        @if (retraitError()) {
+          <div class="alert alert-error" style="margin-bottom:1rem">
+            {{ retraitError() }}
+          </div>
+        }
+        @if (retraitSuccess()) {
+          <div class="alert alert-success" style="margin-bottom:1rem">
+            {{ retraitSuccess() }}
+          </div>
+        }
+        <button type="submit" class="btn btn-primary btn-full"
+          [disabled]="retraitLoading() || retraitForm.invalid">
+          {{ retraitLoading() ? 'Traitement...' : 'Confirmer le retrait' }}
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- HISTORIQUE TRANSACTIONS -->
+  <div class="card" style="margin-top:2rem;padding:0;overflow:hidden">
+    <div style="padding:1.25rem;border-bottom:1px solid var(--color-border)">
+      <h3>Historique des transactions</h3>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Montant</th>
+          <th>Opérateur</th>
+          <th>Statut</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of transactions(); track t.id) {
+          <tr>
+            <td>
+              <span [style.color]="t.type==='DEPOT'
+                ? 'var(--color-success)' : 'var(--color-danger)'">
+                {{ t.type === 'DEPOT' ? '⬇️ Dépôt' : '⬆️ Retrait' }}
+              </span>
+            </td>
+            <td style="font-weight:700">
+              {{ t.type === 'DEPOT' ? '+' : '-' }}
+              {{ t.montant | number:'1.0-0' }} XAF
+            </td>
+            <td>
+              @if (t.moyenPaiement === 'MTN_MOMO') {
+                <span class="badge" style="background:#FEF9C3;color:#854D0E">
+                  MTN MoMo
+                </span>
+              } @else {
+                <span class="badge" style="background:#FFEDD5;color:#9A3412">
+                  Orange Money
+                </span>
+              }
+            </td>
+            <td>
+              <span class="badge"
+                [class]="t.statut==='EFFECTUEE'
+                  ? 'badge-success' : 'badge-warning'">
+                {{ t.statut }}
+              </span>
+            </td>
+            <td style="font-size:0.85rem;color:var(--color-muted)">
+              {{ t.timestamp | date:'dd/MM/yyyy HH:mm' }}
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" style="text-align:center;
+              padding:2rem;color:var(--color-muted)">
+              Aucune transaction
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+.op-btn {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0.4rem; padding: 0.875rem; border: 2px solid var(--color-border);
+      border-radius: var(--radius-md); cursor: pointer;
+      background: var(--color-surface); font-weight: 500;
+      font-size: 0.85rem; transition: all 0.15s;
+    }
+    .op-btn:hover { border-color: var(--color-muted); }
+    .op-btn-selected { border-color: var(--color-primary);
+      background: var(--color-bg); }
+    .op-logo {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 0.75rem; color: white;
+    }
+    .mtn    { background: #FBBF24; color: #1C1917; }
+    .orange { background: #F97316; }

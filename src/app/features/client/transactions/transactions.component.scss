@@ -1,0 +1,16 @@
+    .operateur-btn {
+      display:flex; flex-direction:column; align-items:center; gap:0.5rem;
+      padding:0.875rem; border:2px solid var(--color-border);
+      border-radius:var(--radius-md); background:var(--color-surface);
+      cursor:pointer; font-size:0.85rem; font-weight:500;
+      transition:all 0.15s;
+      &.selected { border-color:var(--color-primary); background:var(--color-bg); }
+      &:hover:not(.selected) { border-color:var(--color-muted); }
+    }
+    .op-logo {
+      width:40px; height:40px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900; font-size:0.75rem; color:white;
+      &.mtn { background:#FFC300; color:#000; }
+      &.orange { background:#FF6B00; }
+    }

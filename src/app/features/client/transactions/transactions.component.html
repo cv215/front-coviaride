@@ -1,0 +1,134 @@
+<div>
+  <h2 style="margin-bottom:0.5rem">Mes transactions</h2>
+  <p style="margin-bottom:2rem">Dépôt et retrait via Mobile Money</p>
+
+  <!-- SOLDE ACTUEL -->
+  @if (wallet()) {
+    <div class="card" style="margin-bottom:2rem;background:var(--color-primary);border-color:var(--color-primary)">
+      <div style="color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.25rem">Solde disponible</div>
+      <div style="color:white;font-size:2.5rem;font-weight:800">
+        {{ wallet()!.soldeDisponible | number:'1.0-0' }} XAF
+      </div>
+    </div>
+  }
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+    <!-- DÉPÔT -->
+    <div class="card">
+      <h3 style="margin-bottom:1.5rem"> Déposer des fonds</h3>
+      <div style="font-size:0.8rem;color:var(--color-muted);margin-bottom:1rem">
+        Minimum : 500 XAF · Aucun frais sur les dépôts
+      </div>
+      <form [formGroup]="depotForm" (ngSubmit)="deposer()">
+
+        <!-- CHOIX OPÉRATEUR -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+          <button type="button" class="operateur-btn"
+            [class.selected]="depotForm.get('moyen')?.value === 'MTN_MOMO'"
+            (click)="depotForm.patchValue({moyen:'MTN_MOMO'})">
+            <div class="op-logo mtn">MTN</div>
+            <span>MTN MoMo</span>
+          </button>
+          <button type="button" class="operateur-btn"
+            [class.selected]="depotForm.get('moyen')?.value === 'ORANGE_MONEY'"
+            (click)="depotForm.patchValue({moyen:'ORANGE_MONEY'})">
+            <div class="op-logo orange">OM</div>
+            <span>Orange Money</span>
+          </button>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Numéro de téléphone</label>
+          <input type="tel" class="field" formControlName="numeroTelephone"
+            placeholder="6XXXXXXXX"/>
+        </div>
+        <div class="form-group" style="margin-bottom:1.5rem">
+          <label>Montant (XAF)</label>
+          <input type="number" class="field" formControlName="montant"
+            placeholder="Minimum 500 XAF" min="500"/>
+        </div>
+
+        @if (depotError()) {
+          <div class="alert alert-error" style="margin-bottom:1rem">{{ depotError() }}</div>
+        }
+        @if (depotSuccess()) {
+          <div class="alert alert-success" style="margin-bottom:1rem">{{ depotSuccess() }}</div>
+        }
+
+        <button type="submit" class="btn btn-success btn-full"
+          [disabled]="depotLoading() || depotForm.invalid">
+          {{ depotLoading() ? 'Traitement...' : 'Déposer' }}
+        </button>
+      </form>
+    </div>
+
+    <!-- RETRAIT -->
+    <div class="card">
+      <h3 style="margin-bottom:1.5rem"> Retirer des fonds</h3>
+      <div style="font-size:0.8rem;color:var(--color-muted);margin-bottom:1rem">
+        Minimum : 1 000 XAF 
+      </div>
+      <form [formGroup]="retraitForm" (ngSubmit)="retirer()">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+          <button type="button" class="operateur-btn"
+            [class.selected]="retraitForm.get('moyen')?.value === 'MTN_MOMO'"
+            (click)="retraitForm.patchValue({moyen:'MTN_MOMO'})">
+            <div class="op-logo mtn">MTN</div>
+            <span>MTN MoMo</span>
+          </button>
+          <button type="button" class="operateur-btn"
+            [class.selected]="retraitForm.get('moyen')?.value === 'ORANGE_MONEY'"
+            (click)="retraitForm.patchValue({moyen:'ORANGE_MONEY'})">
+            <div class="op-logo orange">OM</div>
+            <span>Orange Money</span>
+          </button>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Numéro de téléphone</label>
+          <input type="tel" class="field" formControlName="numeroTelephone"
+            placeholder="6XXXXXXXX"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0.5rem">
+          <label>Montant (XAF)</label>
+          <input type="number" class="field" formControlName="montant"
+            placeholder="Minimum 1000 XAF" min="1000"
+            (input)="calculerFrais()"/>
+        </div>
+
+        @if (montantRetrait() >= 1000) {
+          <div style="background:#FEF3C7;border-radius:8px;padding:0.75rem;
+            margin-bottom:1rem;font-size:0.85rem">
+            <div style="display:flex;justify-content:space-between">
+              <span>Montant demandé</span>
+              <strong>{{ montantRetrait() | number:'1.0-0' }} XAF</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;color:var(--color-danger)">
+              <span>Frais 10%</span>
+              <strong>- {{ fraisRetrait() | number:'1.0-0' }} XAF</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+              border-top:1px solid #F59E0B;margin-top:0.5rem;padding-top:0.5rem;font-weight:700">
+              <span>Vous recevez</span>
+              <strong>{{ netRetrait() | number:'1.0-0' }} XAF</strong>
+            </div>
+          </div>
+        }
+
+        @if (retraitError()) {
+          <div class="alert alert-error" style="margin-bottom:1rem">{{ retraitError() }}</div>
+        }
+        @if (retraitSuccess()) {
+          <div class="alert alert-success" style="margin-bottom:1rem">{{ retraitSuccess() }}</div>
+        }
+
+        <button type="submit" class="btn btn-primary btn-full"
+          [disabled]="retraitLoading() || retraitForm.invalid">
+          {{ retraitLoading() ? 'Traitement...' : 'Retirer' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

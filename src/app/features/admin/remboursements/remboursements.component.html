@@ -1,0 +1,222 @@
+<div>
+  <div style="margin-bottom:2rem">
+    <h2 style="margin:0 0 0.25rem">Remboursements</h2>
+    <p>Examinez et traitez les demandes des clients</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" style="margin-bottom:2rem">
+    <div class="stat-card" style="border-left:4px solid var(--color-warning)">
+      <div class="stat-info">
+        <div class="value" style="color:var(--color-warning)">
+          {{ stats()['enAttente'] || 0 }}
+        </div>
+        <div class="label">En attente</div>
+      </div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid var(--color-success)">
+      <div class="stat-info">
+        <div class="value" style="color:var(--color-success)">
+          {{ stats()['acceptees'] || 0 }}
+        </div>
+        <div class="label">Acceptées</div>
+      </div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid var(--color-danger)">
+      <div class="stat-info">
+        <div class="value" style="color:var(--color-danger)">
+          {{ stats()['refusees'] || 0 }}
+        </div>
+        <div class="label">Refusées</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTRES -->
+  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem">
+    @for (f of filtres; track f.value) {
+      <button class="btn btn-sm"
+        [class.btn-primary]="filtreActif()===f.value"
+        [class.btn-outline]="filtreActif()!==f.value"
+        (click)="filtreActif.set(f.value);charger()">
+        {{ f.label }}
+        @if (f.value==='EN_ATTENTE' && (stats()['enAttente']||0) > 0) {
+          <span style="background:#EF4444;color:white;border-radius:9999px;
+            padding:0 5px;font-size:0.7rem;margin-left:4px">
+            {{ stats()['enAttente'] }}
+          </span>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- LISTE -->
+  @if (chargement()) {
+    <div style="text-align:center;padding:3rem;color:var(--color-muted)">
+      Chargement...
+    </div>
+  } @else if (demandes().length === 0) {
+    <div class="card" style="text-align:center;padding:3rem">
+      <p style="color:var(--color-success)">
+        ✓ Aucune demande {{ filtreActif()==='EN_ATTENTE' ? 'en attente' : '' }}
+      </p>
+    </div>
+  } @else {
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      @for (d of demandes(); track d.id) {
+        <div class="card">
+          <!-- INFOS DEMANDE -->
+          <div style="display:flex;align-items:flex-start;
+            justify-content:space-between;margin-bottom:1rem">
+            <div>
+              <div style="display:flex;align-items:center;gap:0.75rem;
+                margin-bottom:0.5rem">
+                <strong>#{{ d.id }}</strong>
+                <span class="badge" [class]="getBadge(d.statut)">
+                  {{ getLabel(d.statut) }}
+                </span>
+              </div>
+              <div style="font-size:0.82rem;color:var(--color-muted);
+                display:flex;gap:1.25rem;flex-wrap:wrap">
+                <span> Passager #{{ d.passagerId }}</span>
+                <span> Réservation #{{ d.reservationId }}</span>
+                <span> {{ d.dateCreation | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:1.4rem;font-weight:800">
+                {{ d.montant | number:'1.0-0' }} XAF
+              </div>
+            </div>
+          </div>
+
+          <!-- MOTIF + DÉTAILS -->
+          <div style="display:grid;grid-template-columns:200px 1fr;gap:1rem;
+            margin-bottom:1rem">
+            <div style="background:var(--color-bg);border-radius:8px;
+              padding:0.875rem">
+              <div style="font-size:0.7rem;text-transform:uppercase;
+                letter-spacing:0.05em;color:var(--color-muted);
+                margin-bottom:0.35rem;font-weight:700">Motif</div>
+              <div style="font-size:0.875rem;font-weight:600">
+                {{ getMotifLabel(d.motif) }}
+              </div>
+            </div>
+            <div style="background:var(--color-bg);border-radius:8px;
+              padding:0.875rem">
+              <div style="font-size:0.7rem;text-transform:uppercase;
+                letter-spacing:0.05em;color:var(--color-muted);
+                margin-bottom:0.35rem;font-weight:700">
+                Description du client
+              </div>
+              <div style="font-size:0.875rem;line-height:1.6">
+                {{ d.details }}
+              </div>
+            </div>
+          </div>
+
+          <!-- RÉPONSE ADMIN si traitée -->
+          @if (d.commentaireAdmin) {
+            <div style="padding:0.75rem;border-radius:8px;
+              font-size:0.85rem;margin-bottom:1rem"
+              [style.background]="d.statut==='ACCEPTE'?'#ECFDF5':'#FEF2F2'"
+              [style.border]="d.statut==='ACCEPTE'
+                ? '1px solid #A7F3D0':'1px solid #FECACA'">
+              <strong>Réponse admin :</strong> {{ d.commentaireAdmin }}
+              @if (d.dateTraitement) {
+                <span style="margin-left:0.5rem;opacity:0.65;font-size:0.78rem">
+                  · {{ d.dateTraitement | date:'dd/MM/yyyy HH:mm' }}
+                </span>
+              }
+            </div>
+          }
+
+          <!-- FORMULAIRE TRAITEMENT -->
+          @if (d.statut==='EN_ATTENTE' || d.statut==='EN_COURS') {
+            @if (demandeOuverte()===d.id) {
+              <div style="border-top:1px solid var(--color-border);
+                padding-top:1.25rem">
+                <p style="font-weight:600;margin-bottom:1rem">
+                  Traiter la demande
+                </p>
+                <form [formGroup]="formTraitement" (ngSubmit)="traiter(d)">
+                  <!-- Décision -->
+                  <div style="display:grid;grid-template-columns:1fr 1fr;
+                    gap:0.75rem;margin-bottom:1rem">
+                    <label style="display:flex;align-items:center;gap:0.5rem;
+                      padding:0.875rem;border:2px solid;border-radius:8px;
+                      cursor:pointer;transition:all 0.15s"
+                      [style.border-color]="formTraitement.get('accepte')?.value===true
+                        ? 'var(--color-success)':'var(--color-border)'"
+                      [style.background]="formTraitement.get('accepte')?.value===true
+                        ? '#ECFDF5':'transparent'">
+                      <input type="radio" formControlName="accepte" [value]="true"/>
+                      <span style="font-weight:600;color:var(--color-success)">
+                        ✓ Accepter — créditer {{ d.montant|number:'1.0-0' }} XAF
+                      </span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:0.5rem;
+                      padding:0.875rem;border:2px solid;border-radius:8px;
+                      cursor:pointer;transition:all 0.15s"
+                      [style.border-color]="formTraitement.get('accepte')?.value===false
+                        ? 'var(--color-danger)':'var(--color-border)'"
+                      [style.background]="formTraitement.get('accepte')?.value===false
+                        ? '#FEF2F2':'transparent'">
+                      <input type="radio" formControlName="accepte" [value]="false"/>
+                      <span style="font-weight:600;color:var(--color-danger)">
+                        ✕ Refuser
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Commentaire -->
+                  <div class="form-group" style="margin-bottom:1rem">
+                    <label>
+                      Message pour le client *
+                      <span style="color:var(--color-muted);font-weight:400">
+                        (reçu par notification + email)
+                      </span>
+                    </label>
+                    <textarea class="field" formControlName="commentaire"
+                      rows="3"
+                      placeholder="Expliquez votre décision...">
+                    </textarea>
+                    @if (formTraitement.get('commentaire')?.invalid
+                      && formTraitement.get('commentaire')?.touched) {
+                      <div class="error-msg">Commentaire requis</div>
+                    }
+                  </div>
+
+                  @if (erreurTraitement()) {
+                    <div class="alert alert-error" style="margin-bottom:1rem">
+                      {{ erreurTraitement() }}
+                    </div>
+                  }
+
+                  <div style="display:flex;gap:0.75rem">
+                    <button type="submit" class="btn btn-primary"
+                      [disabled]="traitementLoading()||formTraitement.invalid">
+                      {{ traitementLoading() ? 'Traitement...' : 'Confirmer' }}
+                    </button>
+                    <button type="button" class="btn btn-outline"
+                      (click)="demandeOuverte.set(null)">
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              </div>
+            } @else {
+              <div style="border-top:1px solid var(--color-border);
+                padding-top:1rem">
+                <button class="btn btn-primary btn-sm"
+                  (click)="ouvrirForm(d)">
+                  Traiter cette demande →
+                </button>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
