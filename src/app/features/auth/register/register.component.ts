@@ -196,7 +196,7 @@ export class RegisterComponent {
   error = signal('');
   success = signal('');
   showPwd  = false;
-  pwdValue = '';      // ← AJOUTER
+  pwdValue = '';
   pwdStrong = false;  // ← AJOUTER
   maxDate: string;
 
