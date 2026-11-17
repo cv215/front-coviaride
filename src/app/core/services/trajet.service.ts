@@ -37,8 +37,13 @@ export class TrajetService {
     return this.http.post<Trajet>(`${this.base}/${id}/chauffeur/${chauffeurId}/terminer`, {});
   }
 
-  getMesTrajets(chauffeurId: number, page = 0): Observable<Page<Trajet>> {
-    return this.http.get<Page<Trajet>>(`${this.base}/chauffeur/${chauffeurId}/mes-trajets?page=${page}`);
+  getMesTrajets(chauffeurId: number, page = 0, size = 100): Observable<Page<Trajet>> {
+    return this.http.get<Page<Trajet>>(`${this.base}/chauffeur/${chauffeurId}/mes-trajets?page=${page}&size=${size}`);
+  }
+
+  /** Parcours déjà effectué par le chauffeur (ordre chronologique). */
+  getTrace(id: number): Observable<{ latitude: number; longitude: number; vitesse: number; timestamp: string }[]> {
+    return this.http.get<any[]>(`${this.base}/${id}/trace`);
   }
 
   getDernierePosition(id: number): Observable<any> {

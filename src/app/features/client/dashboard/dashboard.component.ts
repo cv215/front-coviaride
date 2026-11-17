@@ -168,9 +168,13 @@ const SEUIL_PALIER_GOLD = 3000;
               <span class="lx-list-body">
                 <span class="lx-row" style="gap:.5rem;flex-wrap:nowrap">
                   <span class="lx-list-title lx-truncate">{{ formaterDateReservation(rez) }}</span>
-                  <span class="lx-badge" [class.lx-badge-success]="rez.statut === 'ACCEPTEE'">
-                    {{ rez.statut === 'ACCEPTEE' ? 'Confirmé' : 'En attente' }}
-                  </span>
+                  @if (rez.contreOffre) {
+                    <span class="lx-badge lx-badge-gold">Contre-offre</span>
+                  } @else {
+                    <span class="lx-badge" [class.lx-badge-success]="rez.statut === 'ACCEPTEE'">
+                      {{ rez.statut === 'ACCEPTEE' ? 'Confirmé' : 'En attente' }}
+                    </span>
+                  }
                 </span>
                 <span class="lx-list-sub">{{ rez.villeDepart || 'Départ' }} → {{ rez.villeArrivee || 'Arrivée' }}</span>
                 <span class="lx-list-sub">{{ rez.nombrePlaces }} place{{ rez.nombrePlaces > 1 ? 's' : '' }} · Réf. CR-{{ rez.id }}</span>

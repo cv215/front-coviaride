@@ -19,6 +19,7 @@ import { AppShellComponent, ShellNavItem } from '../../../shared/components/app-
   [nom]="nomComplet()"
   [salutation]="salutation()"
   [navPrincipale]="navPrincipale"
+  [titresSupplementaires]="{ '/chauffeur/suivi': 'Carte du trajet' }"
   [action]="{ path: '/chauffeur/courses', icon: 'plus', label: 'Publier un trajet', query: { nouveau: '1' } }">
   <router-outlet />
 </lx-app-shell>

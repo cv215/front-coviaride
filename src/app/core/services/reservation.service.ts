@@ -15,6 +15,19 @@ export class ReservationService {
       { trajetId, chauffeurId, nombrePlaces, pointArret, prixParPlace });
   }
 
+  /** Chauffeur : proposer un prix entre l'offre du passager et le prix affiché. */
+  contreOffre(rezId: number, chauffeurId: number, prixParPlace: number): Observable<Reservation> {
+    return this.http.post<Reservation>(`${this.base}/${rezId}/chauffeur/${chauffeurId}/contre-offre`, { prixParPlace });
+  }
+
+  accepterContreOffre(rezId: number, passagerId: number): Observable<Reservation> {
+    return this.http.post<Reservation>(`${this.base}/${rezId}/passager/${passagerId}/contre-offre/accepter`, {});
+  }
+
+  refuserContreOffre(rezId: number, passagerId: number): Observable<Reservation> {
+    return this.http.post<Reservation>(`${this.base}/${rezId}/passager/${passagerId}/contre-offre/refuser`, {});
+  }
+
   annuler(rezId: number, passagerId: number): Observable<Reservation> {
     return this.http.delete<Reservation>(`${this.base}/${rezId}/passager/${passagerId}`);
   }

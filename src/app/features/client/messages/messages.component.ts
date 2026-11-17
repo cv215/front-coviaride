@@ -9,6 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { environment } from '../../../../environments/environment';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ProfilsService } from '../../../core/services/profils.service';
 
 /** Identifiant du compte « Service client » côté chat. */
 const SUPPORT_ID = 1;
@@ -36,6 +37,7 @@ export class MessagesComponent implements OnInit {
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
   private toast = inject(ToastService);
+  private profils = inject(ProfilsService);
   private destroyRef = inject(DestroyRef);
   /** Composant partagé : côté chauffeur, les contacts sont des passagers. */
   private libelleContact = inject(Router).url.startsWith('/chauffeur') ? 'Passager' : 'Chauffeur';
@@ -100,15 +102,12 @@ export class MessagesComponent implements OnInit {
 
   /** Remplace « Chauffeur #id » / « Passager #id » par le vrai nom du contact. */
   private enrichirNoms(liste: Conversation[]) {
-    for (const c of liste.filter(x => !x.support)) {
-      this.http.get<any>(`${environment.apiUrl}/utilisateurs/profil/${c.contactId}`).subscribe({
-        next: p => {
-          const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ').trim();
-          if (nom) this.conversations.update(arr => arr.map(x => x.contactId === c.contactId ? { ...x, nom } : x));
-        },
-        error: () => {}
-      });
-    }
+    this.profils.charger(liste.filter(x => !x.support).map(x => x.contactId));
+  }
+
+  /** Nom affiché d'une conversation (mis à jour dès que les noms sont chargés). */
+  nomDe(c: Conversation): string {
+    return c.support ? c.nom : this.profils.nom(c.contactId, this.libelleContact);
   }
 
   ouvrir(c: Conversation) {

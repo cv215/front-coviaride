@@ -136,6 +136,11 @@ export interface Reservation {
   montantTotal?: number;
   prixParPlace?: number;
   pointArret?: string;
+  /** Prix affiché du trajet au moment de la réservation (plafond de la négociation). */
+  prixCatalogue?: number;
+  /** Contre-offre du chauffeur en attente de réponse du passager. */
+  contreOffre?: number | null;
+  dateContreOffre?: string | null;
   dateAnnulation?: string;
   motifAnnulation?: string;
   note?: number;
@@ -293,4 +298,38 @@ export interface ProfilUtilisateur {
   noteMoyenne: number;
   nombreAvis: number;
   contactsUrgence: string[];
+}
+
+// ─── PROFIL PUBLIC & DOCUMENTS KYC ─────────────────────────────────────────────
+export interface ProfilPublic {
+  id: number;
+  prenom: string;
+  nom: string;
+  photo?: string | null;
+  role?: string;
+  noteMoyenne?: number;
+  nombreAvis?: number;
+}
+
+export type TypeDocument = 'PERMIS' | 'CNI' | 'ASSURANCE' | 'CARTE_GRISE';
+
+export interface DocumentKyc {
+  id: number;
+  typeDocument: TypeDocument;
+  numeroDocument?: string | null;
+  urlDocument?: string;
+  nomFichier?: string;
+  typeContenu?: string;
+  taille?: number;
+  statutVerification: 'EN_ATTENTE' | 'VALIDE' | 'REJETE';
+  motifRejet?: string | null;
+  dateDepot?: string;
+  dateVerification?: string | null;
+}
+
+export interface FiltresUtilisateurs {
+  recherche?: string;
+  role?: '' | 'PASSAGER' | 'CHAUFFEUR';
+  statut?: '' | 'ACTIF' | 'BLOQUE' | 'SUSPENDU';
+  kyc?: '' | 'A_VERIFIER' | 'VALIDE';
 }

@@ -75,9 +75,9 @@ export class AdminLayoutComponent implements OnInit {
     this.rembSvc.getStats().subscribe({
       next: st => this.compteurs.update(c => ({ ...c, remboursements: st?.['enAttente'] ?? 0 })), error: () => {}
     });
-    this.userSvc.getAllAdmin(0, 500).subscribe({
-      next: p => this.compteurs.update(c => ({ ...c, kyc: (p?.content ?? []).filter(u =>
-        (u.role === 'CHAUFFEUR' || u.role === 'PASSAGER_ET_CHAUFFEUR') && !u.kycValide && u.statut !== 'BLOQUE').length })),
+    // Le serveur compte les dossiers à vérifier : une seule ligne suffit, on lit le total.
+    this.userSvc.getAllAdmin(0, 1, { kyc: 'A_VERIFIER' }).subscribe({
+      next: p => this.compteurs.update(c => ({ ...c, kyc: p?.totalElements ?? 0 })),
       error: () => {}
     });
   }

@@ -238,13 +238,7 @@ export class ProfileComponent implements OnInit{
     this.pwdSuccess.set('');
     this.pwdErreur.set('');
 
-    this.http.put<{ message: string }>(
-      `${environment.apiUrl}/utilisateurs/profil/${u.compteId}/changer-mot-de-passe`,
-      {
-        ancienMotDePasse:  this.formPwd.value.ancien,
-        nouveauMotDePasse: this.formPwd.value.nouveau
-      }
-    ).subscribe({
+    this.auth.changerMotDePasse(this.formPwd.value.ancien!, this.formPwd.value.nouveau!).subscribe({
       next: res => {
         this.pwdSuccess.set(
           res.message || 'Mot de passe modifié. Reconnectez-vous.');
@@ -289,11 +283,12 @@ export class ProfileComponent implements OnInit{
     const contacts = [...(this.profil()!.contactsUrgence || [])];
     contacts.splice(index, 1);
 
+    // Endpoint dédié : PUT /profil/{id} ignore les contacts d'urgence.
     this.http.put<ProfilUtilisateur>(
-      `${environment.apiUrl}/utilisateurs/profil/${u.compteId}`,
+      `${environment.apiUrl}/utilisateurs/profil/${u.compteId}/contacts-urgence`,
       { contactsUrgence: contacts }
     ).subscribe({
-      next: updated => this.profil.set(updated),
+      next: updated => { this.profil.set(updated); this.urgenceMsg.set('Contact supprimé.'); setTimeout(() => this.urgenceMsg.set(''), 2500); },
       error: () => {}
     });
   }

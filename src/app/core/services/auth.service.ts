@@ -39,6 +39,11 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/mot-de-passe/reset`, req);
   }
 
+  /** Vérifie le mot de passe actuel côté serveur avant d'enregistrer le nouveau. */
+  changerMotDePasse(ancienMotDePasse: string, nouveauMotDePasse: string): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${environment.apiUrl}/auth/compte/mot-de-passe`, { ancienMotDePasse, nouveauMotDePasse });
+  }
+
   /** @param expiree true quand la session a expiré : on renvoie vers la connexion en gardant la page demandée. */
   deconnexion(expiree = false): void {
     localStorage.removeItem(this.TOKEN_KEY);

@@ -7,6 +7,7 @@ import {
   DemandeRemboursement
 } from '../../../core/services/remboursement.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ProfilsService } from '../../../core/services/profils.service';
 
 @Component({
   selector: 'app-remboursements',
@@ -38,6 +39,7 @@ export class RemboursementsComponent implements OnInit {
   });
 
   private toast = inject(ToastService);
+  profils = inject(ProfilsService);
 
   constructor(
     private fb: FormBuilder,
@@ -58,6 +60,7 @@ export class RemboursementsComponent implements OnInit {
     this.rembSvc.getAllDemandes(this.filtreActif()).subscribe({
       next: p => {
         this.demandes.set(p?.content ?? []);
+        this.profils.charger((p?.content ?? []).map(d => d.passagerId));
         this.chargement.set(false);
       },
       error: err => { this.chargement.set(false); this.toast.error('Chargement impossible', err); }
@@ -89,7 +92,7 @@ export class RemboursementsComponent implements OnInit {
         this.demandeOuverte.set(null);
         this.traitementLoading.set(false);
         this.toast.success(v.accepte ? 'Remboursement accepté' : 'Demande refusée',
-          v.accepte ? `${fcfa(updated?.montant ?? d.montant)} crédités au passager #${updated?.passagerId ?? d.passagerId}` : `Demande #${d.id}`);
+          v.accepte ? `${fcfa(updated?.montant ?? d.montant)} crédités à ${this.profils.nom(d.passagerId, 'Passager')}` : `Demande #${d.id}`);
         this.chargerStats();
       },
       error: err => {

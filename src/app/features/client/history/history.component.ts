@@ -11,6 +11,7 @@ import { ToastService, fcfa } from '../../../core/services/toast.service';
 import { Reservation } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ProfilsService } from '../../../core/services/profils.service';
 
 type Filtre = 'a-venir' | 'terminees' | 'annulees' | 'toutes';
 type ActionConfirm = { type: 'annuler' | 'embarquer' | 'arriver'; rez: Reservation } | null;
@@ -84,6 +85,9 @@ const LIBELLES: Record<Reservation['statut'], string> = {
                   <lx-icon name="arrow-right" [size]="16" class="lx-gold" />
                   <span>{{ r.villeArrivee || 'Arrivée' }}</span>
                 </div>
+                <div class="meta driver">
+                  <lx-icon name="user" [size]="13" /> {{ profils.nom(r.chauffeurId, 'Chauffeur') }}
+                </div>
                 <div class="meta">
                   {{ formatDate(r.dateReservation) }} · {{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}
                   @if (r.pointArret) { · arrêt {{ r.pointArret }} }
@@ -96,6 +100,27 @@ const LIBELLES: Record<Reservation['statut'], string> = {
               <div class="price">{{ montant(r) }}</div>
             </div>
           </div>
+
+          @if (r.statut === 'EN_ATTENTE' && r.contreOffre) {
+            <div class="counter-offer">
+              <div class="lx-row" style="gap:.5rem;flex-wrap:nowrap;align-items:flex-start">
+                <lx-icon name="tag" [size]="16" />
+                <div>
+                  <strong>Contre-offre du chauffeur : {{ r.contreOffre | number:'1.0-0' }} FCFA / place</strong>
+                  <div class="lx-muted" style="font-size:.78rem">
+                    Votre offre : {{ r.prixParPlace | number:'1.0-0' }} F · prix affiché : {{ (r.prixCatalogue ?? r.prixParPlace) | number:'1.0-0' }} F ·
+                    total {{ (r.contreOffre * r.nombrePlaces) | number:'1.0-0' }} FCFA
+                  </div>
+                </div>
+              </div>
+              <div class="lx-row" style="gap:.5rem;justify-content:flex-end">
+                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="refuserContreOffre(r)" [disabled]="busy() === r.id">Décliner</button>
+                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="accepterContreOffre(r)" [disabled]="busy() === r.id"><lx-icon name="check" /> Accepter et réserver</button>
+              </div>
+            </div>
+          } @else if (r.statut === 'EN_ATTENTE' && r.prixCatalogue && r.prixParPlace && r.prixParPlace < r.prixCatalogue) {
+            <div class="my-offer"><lx-icon name="tag" [size]="14" /> Votre offre : {{ r.prixParPlace | number:'1.0-0' }} F / place (prix affiché {{ r.prixCatalogue | number:'1.0-0' }} F) — en attente de réponse</div>
+          }
 
           @if (r.statut !== 'ANNULEE' && r.statut !== 'REFUSEE') {
             <ol class="steps" aria-label="Progression">
@@ -112,7 +137,7 @@ const LIBELLES: Record<Reservation['statut'], string> = {
           <div class="actions">
             @switch (r.statut) {
               @case ('EN_ATTENTE') {
-                <span class="hint">Le chauffeur n'a pas encore répondu. Aucun montant n'est prélevé tant qu'il n'a pas accepté.</span>
+                <span class="hint">{{ r.contreOffre ? 'Répondez à la contre-offre ci-dessus, ou annulez.' : "Le chauffeur n'a pas encore répondu. Aucun montant n'est prélevé tant qu'il n'a pas accepté." }}</span>
                 <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
               }
               @case ('ACCEPTEE') {
@@ -197,6 +222,11 @@ const LIBELLES: Record<Reservation['statut'], string> = {
     .steps li.done .dot { background: var(--lx-primary); border-color: var(--lx-primary); }
     .steps li.current .dot { border-color: var(--lx-primary); box-shadow: 0 0 0 4px rgba(200, 146, 42, 0.2); }
     .steps li.done, .steps li.current { color: var(--lx-fg); }
+    .driver { display: flex; align-items: center; gap: 0.3rem; color: rgba(240, 236, 227, 0.75); }
+    .counter-offer { margin-top: 1rem; padding: 0.9rem 1rem; border-radius: var(--lx-r-md); display: flex; flex-direction: column; gap: 0.75rem;
+      background: rgba(200, 146, 42, 0.08); border: 1px solid rgba(200, 146, 42, 0.35); font-size: 0.875rem;
+      > .lx-row > lx-icon { color: var(--lx-primary); margin-top: 2px; } strong { font-weight: 600; } }
+    .my-offer { margin-top: 0.85rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--lx-muted-fg); lx-icon { color: var(--lx-primary); } }
     .motif { color: var(--lx-muted-fg); font-size: 0.85rem; margin: 0.75rem 0 0; }
 
     .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; align-items: center;
@@ -225,6 +255,7 @@ export class HistoryComponent implements OnInit {
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
   router = inject(Router);
+  profils = inject(ProfilsService);
 
   loading = signal(true);
   erreur = signal('');
@@ -279,7 +310,9 @@ export class HistoryComponent implements OnInit {
         const list = [...(p.content ?? [])].sort((a, b) =>
           new Date(b.dateReservation).getTime() - new Date(a.dateReservation).getTime());
         if (silencieux) this.signalerChangements(list);
+        list.filter(r => r.contreOffre).forEach(r => this.contreOffresConnues.add(r.id));
         list.forEach(r => this.statutsConnus.set(r.id, r.statut));
+        this.profils.charger(list.map(r => r.chauffeurId));
         this.reservations.set(list);
         this.erreur.set('');
         this.loading.set(false);
@@ -293,8 +326,13 @@ export class HistoryComponent implements OnInit {
     });
   }
 
+  private contreOffresConnues = new Set<number>();
+
   private signalerChangements(list: Reservation[]) {
     for (const r of list) {
+      if (r.contreOffre && !this.contreOffresConnues.has(r.id)) {
+        this.toast.info('Le chauffeur vous propose un prix', `${r.villeDepart ?? ''} → ${r.villeArrivee ?? ''} · ${fcfa(r.contreOffre)} / place`);
+      }
       const avant = this.statutsConnus.get(r.id);
       if (!avant || avant === r.statut) continue;
       const trajet = `${r.villeDepart ?? ''} → ${r.villeArrivee ?? ''}`;
@@ -389,6 +427,39 @@ export class HistoryComponent implements OnInit {
         this.busy.set(null);
         this.toast.error('Action impossible', err);
       }
+    });
+  }
+
+  accepterContreOffre(r: Reservation) {
+    const u = this.auth.currentUser();
+    if (!u || this.busy()) return;
+    this.busy.set(r.id);
+    this.rezSvc.accepterContreOffre(r.id, u.compteId).subscribe({
+      next: maj => {
+        this.busy.set(null);
+        this.reservations.update(list => list.map(x => x.id === r.id ? { ...x, ...maj } : x));
+        this.statutsConnus.set(r.id, maj?.statut ?? 'ACCEPTEE');
+        this.toast.success('Réservation confirmée', `${fcfa(maj?.montantTotal ?? (r.contreOffre ?? 0) * r.nombrePlaces)} bloqués jusqu'au trajet.`);
+      },
+      error: err => {
+        this.busy.set(null);
+        this.toast.error('Confirmation impossible', err);
+        if (err?.status === 402) this.toast.warning('Solde insuffisant', 'Rechargez votre portefeuille puis réessayez.');
+      }
+    });
+  }
+
+  refuserContreOffre(r: Reservation) {
+    const u = this.auth.currentUser();
+    if (!u || this.busy()) return;
+    this.busy.set(r.id);
+    this.rezSvc.refuserContreOffre(r.id, u.compteId).subscribe({
+      next: maj => {
+        this.busy.set(null);
+        this.reservations.update(list => list.map(x => x.id === r.id ? { ...x, ...maj, contreOffre: null } : x));
+        this.toast.info('Contre-offre déclinée', 'Votre offre initiale reste proposée au chauffeur. Vous pouvez aussi annuler.');
+      },
+      error: err => { this.busy.set(null); this.toast.error('Action impossible', err); }
     });
   }
 

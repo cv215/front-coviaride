@@ -161,7 +161,7 @@ function dateLocale(d = new Date()): string {
                         @if (aReserve() && chauffeur()!.telephone) {
                           <div class="lx-gold" style="font-weight:600">{{ chauffeur()!.telephone }}</div>
                         } @else {
-                          <div class="lx-muted">Visible après réservation</div>
+                          <div class="lx-muted">Visible une fois votre réservation acceptée</div>
                         }
                       </div>
                     </div>
@@ -208,36 +208,24 @@ function dateLocale(d = new Date()): string {
                       }
                     </div>
 
-                    <!-- Négociation -->
-                    @if (showChat()) {
-                      <div class="chat">
-                        <div class="chat-head">
-                          <span class="lx-row" style="gap:.5rem"><lx-icon name="message" [size]="16" /> Négocier le prix</span>
-                          <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="showChat.set(false)" aria-label="Fermer"><lx-icon name="x" /></button>
-                        </div>
-                        <div class="chat-body">
-                          @for (msg of chatMessages(); track msg.id) {
-                            <div class="bubble-wrap" [class.mine]="msg.moi">
-                              <div class="bubble">{{ msg.contenu }}</div>
-                              <div class="bubble-time">{{ msg.heure }}</div>
-                            </div>
-                          }
-                          @if (offreChauffeur()) {
-                            <div class="offer">
-                              <div class="lx-row" style="gap:.4rem;color:var(--lx-emerald);font-size:.75rem"><lx-icon name="tag" [size]="14" /> Offre du chauffeur</div>
-                              <div class="offer-amount lx-display">{{ offreChauffeur() | number:'1.0-0' }} FCFA</div>
-                              <div class="lx-muted" style="font-size:.75rem">Prix initial : {{ t.prixParPlace | number:'1.0-0' }} FCFA</div>
-                              <div class="lx-row" style="margin-top:.75rem;gap:.5rem">
-                                <button class="lx-btn lx-btn-success lx-btn-sm" (click)="accepterOffre(t)"><lx-icon name="check" /> Accepter et réserver</button>
-                                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="refuserOffre()">Refuser</button>
-                              </div>
-                            </div>
-                          }
-                        </div>
-                        <form class="chat-input" (ngSubmit)="envoyerMessage(t)">
-                          <input class="lx-input" name="msg" [(ngModel)]="messageChat" placeholder="Ex : Pouvez-vous faire 3 000 FCFA ?" autocomplete="off" />
-                          <button type="submit" class="lx-btn lx-btn-primary" [disabled]="!messageChat.trim()" aria-label="Envoyer"><lx-icon name="send" /></button>
-                        </form>
+                    <!-- Offre de prix : envoyée au chauffeur avec la réservation -->
+                    @if (!aReserve()) {
+                      <div class="offer-box" [class.is-open]="offreActive()">
+                        <label class="lx-check">
+                          <input type="checkbox" [checked]="offreActive()" (change)="basculerOffre(t)" />
+                          <span>Proposer un autre prix au chauffeur</span>
+                        </label>
+                        @if (offreActive()) {
+                          <div class="offer-row">
+                            <input class="lx-input lx-mono" type="number" name="offre" [(ngModel)]="prixPropose"
+                              [min]="prixMinimum(t)" [max]="prixAffiche(t)" step="50" aria-label="Prix proposé par place" />
+                            <span class="lx-muted">FCFA / place</span>
+                          </div>
+                          <div [class]="offreValide(t) ? 'lx-help' : 'lx-error'">
+                            Entre {{ prixMinimum(t) | number:'1.0-0' }} et {{ prixAffiche(t) | number:'1.0-0' }} FCFA. Le chauffeur accepte, refuse
+                            ou vous répond par une contre-offre ; rien n'est prélevé avant son accord.
+                          </div>
+                        }
                       </div>
                     }
 
@@ -259,13 +247,11 @@ function dateLocale(d = new Date()): string {
 
                     <div class="actions">
                       @if (!aReserve()) {
-                        <button class="lx-btn lx-btn-primary" (click)="reserver(t)" [disabled]="rezLoading()">
+                        <button class="lx-btn lx-btn-primary" (click)="reserver(t)" [disabled]="rezLoading() || (offreActive() && !offreValide(t))">
                           @if (rezLoading()) { <lx-icon name="refresh" class="lx-spin" /> Réservation… }
+                          @else if (offreActive()) { Envoyer mon offre — {{ (prixPropose || 0) * nbPlaces() | number:'1.0-0' }} FCFA }
                           @else { Réserver — {{ getPrixReservation(t) * nbPlaces() | number:'1.0-0' }} FCFA }
                         </button>
-                        @if (!showChat()) {
-                          <button class="lx-btn lx-btn-outline" (click)="ouvrirChat(t)"><lx-icon name="message" /> Négocier le prix</button>
-                        }
                       }
                       <button class="lx-btn lx-btn-ghost" (click)="trajetSelectionne.set(null)">Fermer</button>
                     </div>
@@ -314,18 +300,9 @@ function dateLocale(d = new Date()): string {
     .review { background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.75rem 0.9rem; }
     .review-text { margin: 0.35rem 0 0; font-size: 0.82rem; font-style: italic; }
 
-    .chat { border: 1px solid var(--lx-border); border-radius: var(--lx-r-lg); overflow: hidden; }
-    .chat-head { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.6rem 0.6rem 1rem;
-      background: rgba(200, 146, 42, 0.1); color: var(--lx-primary); font-size: 0.875rem; font-weight: 500; }
-    .chat-body { max-height: 260px; min-height: 140px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; background: var(--lx-bg); }
-    .bubble-wrap { align-self: flex-start; max-width: 80%;
-      &.mine { align-self: flex-end; .bubble { background: var(--lx-primary); color: var(--lx-primary-fg); } .bubble-time { text-align: right; } } }
-    .bubble { background: var(--lx-secondary); padding: 0.55rem 0.8rem; border-radius: 12px; font-size: 0.85rem; line-height: 1.45; }
-    .bubble-time { font-size: 0.68rem; color: var(--lx-muted-fg); margin-top: 0.2rem; }
-    .offer { align-self: flex-start; background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: var(--lx-r-md); padding: 0.8rem 1rem; }
-    .offer-amount { font-size: 1.25rem; margin: 0.2rem 0; }
-    .chat-input { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--lx-border); background: var(--lx-card);
-      .lx-input { padding: 0.65rem 0.9rem; } }
+    .offer-box { background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+      &.is-open { border: 1px solid rgba(200, 146, 42, 0.3); } }
+    .offer-row { display: flex; align-items: center; gap: 0.6rem; .lx-input { max-width: 180px; background: var(--lx-bg); } }
 
     .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 
@@ -354,11 +331,9 @@ export class NewCourseComponent implements OnInit {
   rezLoading        = signal(false);
   rezSuccess        = signal('');
   rezError          = signal('');
-  showChat          = signal(false);
-  chatMessages      = signal<any[]>([]);
-  offreChauffeur    = signal<number | null>(null);
-  messageChat       = '';
-  prixNegocié       = signal<number | null>(null);
+  /** Le passager propose un prix inférieur au prix affiché (offre transmise avec la réservation). */
+  offreActive       = signal(false);
+  prixPropose: number | null = null;
   selectedStop      = signal<string | null>(null);
   today             = dateLocale();
 
@@ -430,10 +405,8 @@ export class NewCourseComponent implements OnInit {
     this.aReserve.set(false);
     this.rezSuccess.set('');
     this.rezError.set('');
-    this.showChat.set(false);
-    this.chatMessages.set([]);
-    this.offreChauffeur.set(null);
-    this.prixNegocié.set(null);
+    this.offreActive.set(false);
+    this.prixPropose = null;
     this.chauffeur.set(null);
     this.avis.set([]);
     this.chargerChauffeur(t.chauffeurId);
@@ -462,73 +435,26 @@ export class NewCourseComponent implements OnInit {
     });
   }
 
-  private heure(): string {
-    return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  /** Prix affiché pour la sélection courante (trajet complet ou segment). */
+  prixAffiche(t: Trajet): number {
+    return this.getStopPrice(t, this.selectedStop()) ?? t.prixParPlace;
   }
 
-  ouvrirChat(t: Trajet) {
-    this.showChat.set(true);
-    if (this.chatMessages().length === 0) {
-      this.chatMessages.set([{
-        id: 1,
-        contenu: `Bonjour ! Je suis intéressé par votre trajet ${t.villeDepart} → ${t.villeArrivee}. `
-          + `Pouvez-vous faire une réduction sur les ${t.prixParPlace} FCFA ?`,
-        moi: true,
-        heure: this.heure()
-      }]);
-      setTimeout(() => this.simulerReponseChauffeur(t), 2000);
-    }
+  /** Le serveur refuse les offres inférieures à la moitié du prix affiché. */
+  prixMinimum(t: Trajet): number {
+    return Math.ceil(this.prixAffiche(t) * 0.5);
   }
 
-  envoyerMessage(t: Trajet) {
-    if (!this.messageChat.trim()) return;
-    const contenu = this.messageChat.trim();
-    this.chatMessages.update(arr => [...arr, { id: Date.now(), contenu, moi: true, heure: this.heure() }]);
-    this.messageChat = '';
-
-    const u = this.auth.currentUser();
-    if (u) {
-      this.http.post(`${environment.apiUrl}/chat/envoyer`, {
-        expediteurId:   u.compteId,
-        destinataireId: t.chauffeurId,
-        contenu,
-        trajetId:       t.id
-      }).subscribe({
-        next: () => setTimeout(() => this.simulerReponseChauffeur(t), 1200),
-        error: () => setTimeout(() => this.simulerReponseChauffeur(t), 1200)
-      });
-      return;
-    }
-    setTimeout(() => this.simulerReponseChauffeur(t), 1200);
+  offreValide(t: Trajet): boolean {
+    const p = Number(this.prixPropose);
+    return Number.isFinite(p) && p >= this.prixMinimum(t) && p < this.prixAffiche(t);
   }
 
-  private simulerReponseChauffeur(t: Trajet) {
-    // Le panneau a pu être fermé ou un autre trajet ouvert entre-temps.
-    if (!this.showChat() || this.trajetSelectionne()?.id !== t.id) return;
-    const reduction = Math.floor(Math.random() * 10) + 5;
-    const prixReduit = Math.round(t.prixParPlace * (1 - reduction / 100));
-    this.chatMessages.update(arr => [...arr, {
-      id: Date.now() + 1,
-      contenu: `Bonjour ! Je peux vous proposer ${prixReduit} FCFA par place, soit ${reduction}% de réduction. C'est mon meilleur prix !`,
-      moi: false,
-      heure: this.heure()
-    }]);
-    this.offreChauffeur.set(prixReduit);
-  }
-
-  accepterOffre(t: Trajet) {
-    const prix = this.offreChauffeur();
-    if (!prix) return;
-    this.offreChauffeur.set(null);
-    this.prixNegocié.set(prix);
-    this.showChat.set(false);
-    this.chatMessages.update(arr => [...arr, { id: Date.now(), contenu: `J'accepte votre offre à ${prix} FCFA !`, moi: true, heure: this.heure() }]);
-    this.reserver(t, prix);
-  }
-
-  refuserOffre() {
-    this.offreChauffeur.set(null);
-    this.prixNegocié.set(null);
+  basculerOffre(t: Trajet) {
+    const actif = !this.offreActive();
+    this.offreActive.set(actif);
+    // Proposition de départ : 10 % de moins, arrondi à 50 F.
+    if (actif) this.prixPropose = Math.max(this.prixMinimum(t), Math.round((this.prixAffiche(t) * 0.9) / 50) * 50);
   }
 
   reserver(t: Trajet, prixOverride?: number) {
@@ -538,16 +464,18 @@ export class NewCourseComponent implements OnInit {
     this.rezError.set('');
 
     const pointArret = this.selectedStop();
-    const prix = prixOverride ?? this.getPrixReservation(t);
+    if (this.offreActive() && !this.offreValide(t)) { this.rezLoading.set(false); return; }
+    const prix = prixOverride ?? (this.offreActive() ? Number(this.prixPropose) : this.getPrixReservation(t));
     const places = this.nbPlaces();
 
     this.rezSvc.reserver(u.compteId, t.id, t.chauffeurId, places, pointArret ?? undefined, prix).subscribe({
       next: (rez) => {
         this.aReserve.set(true);
         const montant = rez?.montantTotal ?? prix * places;
-        this.rezSuccess.set(
-          `Demande envoyée ! Montant : ${fcfa(montant)}. Le chauffeur doit maintenant accepter votre place.`
-        );
+        const offre = this.offreActive();
+        this.rezSuccess.set(offre
+          ? `Offre envoyée : ${fcfa(montant)}. Le chauffeur peut l'accepter, la refuser ou vous faire une contre-offre.`
+          : `Demande envoyée ! Montant : ${fcfa(montant)}. Le chauffeur doit maintenant accepter votre place.`);
         this.toast.success('Réservation envoyée', `${t.villeDepart} → ${t.villeArrivee} · ${fcfa(montant)}`);
         this.rezLoading.set(false);
       },
@@ -579,8 +507,8 @@ export class NewCourseComponent implements OnInit {
     return stop ? stop.prix : null;
   }
 
-  /** Prix par place : segment choisi, sinon prix négocié accepté, sinon prix du trajet. */
+  /** Prix par place affiché : segment choisi, sinon prix du trajet. */
   getPrixReservation(t: Trajet): number {
-    return this.getStopPrice(t, this.selectedStop()) ?? this.prixNegocié() ?? t.prixParPlace;
+    return this.prixAffiche(t);
   }
 }

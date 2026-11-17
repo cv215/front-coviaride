@@ -11,13 +11,15 @@ import { TrajetService } from '../../../core/services/trajet.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
 import { Reservation, Trajet, Portefeuille } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { DecisionReservationComponent } from '../../../shared/components/decision-reservation/decision-reservation.component';
+import { ProfilsService } from '../../../core/services/profils.service';
 
 const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' };
 
 @Component({
   selector: 'app-chauffeur-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent],
+  imports: [CommonModule, RouterLink, IconComponent, DecisionReservationComponent],
   template: `
 <div class="dash">
 
@@ -45,6 +47,7 @@ const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COUR
           <button class="lx-btn lx-btn-primary" style="flex:1 1 220px" (click)="terminer(t)" [disabled]="action() === t.id">
             <lx-icon name="check-circle" /> Terminer le trajet
           </button>
+          <a class="lx-btn lx-btn-secondary" [routerLink]="['/chauffeur/suivi', t.id]"><lx-icon name="map-pin" /> Carte</a>
           <a class="lx-btn lx-btn-secondary" routerLink="/chauffeur/courses"><lx-icon name="users" /> Passagers</a>
           <a class="lx-btn lx-btn-secondary" routerLink="/chauffeur/messages"><lx-icon name="message" /> Messages</a>
         </div>
@@ -90,18 +93,15 @@ const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COUR
           @for (r of reservationsEnAttente(); track r.id) {
             <article class="lx-card request">
               <div class="request-top">
-                <span class="lx-icon-tile is-gold"><lx-icon name="user" /></span>
+                <span class="lx-avatar is-ring">{{ profils.initiales(r.passagerId) }}</span>
                 <div class="lx-list-body">
-                  <span class="lx-list-title">Passager #{{ r.passagerId }}</span>
+                  <span class="lx-list-title">{{ profils.nom(r.passagerId, 'Passager') }}</span>
                   <span class="lx-list-sub">{{ r.villeDepart ? r.villeDepart + ' → ' + r.villeArrivee : 'Trajet #' + r.trajetId }}</span>
                   <span class="lx-list-sub">{{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}@if (r.pointArret) { · arrêt {{ r.pointArret }} }</span>
                 </div>
                 <span class="request-price">{{ fcfa(r.montantTotal) }}</span>
               </div>
-              <div class="request-actions">
-                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="refuser(r)" [disabled]="traitement() === r.id"><lx-icon name="x" /> Refuser</button>
-                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="accepter(r)" [disabled]="traitement() === r.id"><lx-icon name="check" /> Accepter</button>
-              </div>
+              <lx-decision-reservation class="request-decision" [rez]="r" (traitee)="surDecision($event)" />
             </article>
           } @empty {
             <div class="lx-empty">
@@ -170,7 +170,7 @@ const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COUR
     .request { padding: 1.1rem 1.25rem; }
     .request-top { display: flex; align-items: center; gap: 0.9rem; }
     .request-price { font-family: var(--lx-font-display); font-size: 1.05rem; white-space: nowrap; }
-    .request-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--lx-border); }
+    .request-decision { margin-top: 0.9rem; }
 
     .trip { flex-wrap: wrap; }
     .trip-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
@@ -181,7 +181,7 @@ const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COUR
       .live-grid { grid-template-columns: 1fr; }
       .live-inner { padding: 1.15rem; }
       .live-actions .lx-btn { flex: 1 1 auto; }
-      .request-actions .lx-btn, .trip-actions .lx-btn { flex: 1; }
+      .trip-actions .lx-btn { flex: 1; }
     }
   `]
 })
@@ -189,9 +189,9 @@ export class ChauffeurDashboardComponent implements OnInit {
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
   private confirm = inject(ConfirmService);
+  profils = inject(ProfilsService);
 
   fcfa = fcfa;
-  traitement = signal<number | null>(null);
   action = signal<number | null>(null);
   chargement = signal(true);
   reservationsEnAttente = signal<Reservation[]>([]);
@@ -220,7 +220,7 @@ export class ChauffeurDashboardComponent implements OnInit {
     this.chargerDemandes(false);
     // Nouvelles demandes détectées toutes les 20 s, avec notification.
     interval(20000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      if (!document.hidden && !this.traitement()) this.chargerDemandes(true);
+      if (!document.hidden) this.chargerDemandes(true);
     });
     this.trajetSvc.getMesTrajets(u.compteId).subscribe({
       next: p => { this.mesTrajets.set(p?.content ?? []); this.totalTrajets.set(p?.totalElements ?? 0); },
@@ -236,6 +236,7 @@ export class ChauffeurDashboardComponent implements OnInit {
         const connues = new Set(this.reservationsEnAttente().map(r => r.id));
         const nouvelles = (p?.content ?? []).filter(r => !connues.has(r.id));
         this.reservationsEnAttente.set(p?.content ?? []);
+        this.profils.charger((p?.content ?? []).map(r => r.passagerId));
         this.demandesEnAttente.set(p?.totalElements ?? 0);
         this.chargement.set(false);
         if (signaler && nouvelles.length) {
@@ -248,36 +249,20 @@ export class ChauffeurDashboardComponent implements OnInit {
     });
   }
 
-  accepter(r: Reservation) {
-    const u = this.auth.currentUser();
-    if (!u || this.traitement()) return;
-    this.traitement.set(r.id);
-    // Le prix de la réservation (trajet, segment ou négocié) fait foi.
-    this.rezSvc.accepter(r.id, u.compteId, Number(r.prixParPlace ?? 0)).subscribe({
-      next: maj => {
-        this.traitement.set(null);
-        this.retirerDemande(r.id);
-        // Les places libres du trajet ont changé.
-        this.mesTrajets.update(arr => arr.map(t => t.id === r.trajetId
-          ? { ...t, placesDisponibles: Math.max(0, t.placesDisponibles - r.nombrePlaces) } : t));
-        this.toast.success('Réservation acceptée', `${maj?.nombrePlaces ?? r.nombrePlaces} place(s) · ${fcfa(maj?.montantTotal ?? r.montantTotal)} bloqués sur le compte du passager.`);
-      },
-      error: err => { this.traitement.set(null); this.toast.error("Impossible d'accepter", err); }
-    });
-  }
-
-  refuser(r: Reservation) {
-    const u = this.auth.currentUser();
-    if (!u || this.traitement()) return;
-    this.traitement.set(r.id);
-    this.rezSvc.refuser(r.id, u.compteId).subscribe({
-      next: () => {
-        this.traitement.set(null);
-        this.retirerDemande(r.id);
-        this.toast.info('Réservation refusée', 'Le passager a été prévenu.');
-      },
-      error: err => { this.traitement.set(null); this.toast.error('Impossible de refuser', err); }
-    });
+  /** Résultat d'une décision : acceptée, refusée ou contre-offre envoyée. */
+  surDecision(e: { avant: Reservation; apres: Reservation | null }) {
+    const { avant, apres } = e;
+    if (apres && apres.statut === 'EN_ATTENTE') {
+      // Contre-offre : la demande reste en attente de la réponse du passager.
+      this.reservationsEnAttente.update(arr => arr.map(x => x.id === avant.id ? apres : x));
+      return;
+    }
+    this.retirerDemande(avant.id);
+    if (apres?.statut === 'ACCEPTEE') {
+      // Les places libres du trajet ont changé.
+      this.mesTrajets.update(arr => arr.map(t => t.id === avant.trajetId
+        ? { ...t, placesDisponibles: Math.max(0, t.placesDisponibles - avant.nombrePlaces) } : t));
+    }
   }
 
   private retirerDemande(id: number) {

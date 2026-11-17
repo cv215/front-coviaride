@@ -1,4 +1,6 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
@@ -23,7 +25,7 @@ type FiltreStatut = '' | 'ACTIF' | 'BLOQUE' | 'KYC';
     <div>
       <span class="lx-eyebrow">Comptes</span>
       <h2>Utilisateurs</h2>
-      <p>{{ total() }} inscrits · {{ filtres().length }} affichés@if (totalPages() > 1) { (page {{ page() + 1 }}) }</p>
+      <p>{{ total() }} résultat{{ total() > 1 ? 's' : '' }}@if (totalPages() > 1) { · page {{ page() + 1 }} / {{ totalPages() }} }</p>
     </div>
     <button class="lx-btn lx-btn-secondary" (click)="charger()" [disabled]="loading()"><lx-icon name="refresh" [class.lx-spin]="loading()" /> Actualiser</button>
   </div>
@@ -32,15 +34,15 @@ type FiltreStatut = '' | 'ACTIF' | 'BLOQUE' | 'KYC';
     <div class="lx-field has-icon search">
       <span class="lx-field-icon"><lx-icon name="search" /></span>
       <input class="lx-input" type="search" placeholder="Nom, email, téléphone ou n° de compte…" aria-label="Rechercher un utilisateur"
-        [ngModel]="recherche()" (ngModelChange)="recherche.set($event)">
+        [ngModel]="recherche()" (ngModelChange)="surRecherche($event)">
     </div>
     <div class="lx-tabs" style="margin:0">
       @for (r of roles; track r.v) {
-        <button class="lx-tab" [class.is-active]="filtreRole() === r.v" (click)="filtreRole.set(r.v)">{{ r.l }}</button>
+        <button class="lx-tab" [class.is-active]="filtreRole() === r.v" (click)="filtreRole.set(r.v); relancer()">{{ r.l }}</button>
       }
       <span class="sep"></span>
       @for (s of statuts; track s.v) {
-        <button class="lx-tab" [class.is-active]="filtreStatut() === s.v" (click)="filtreStatut.set(s.v)">{{ s.l }}</button>
+        <button class="lx-tab" [class.is-active]="filtreStatut() === s.v" (click)="filtreStatut.set(s.v); relancer()">{{ s.l }}</button>
       }
     </div>
   </div>
@@ -157,26 +159,38 @@ export class UsersComponent implements OnInit {
   readonly roles = [{ v: '' as FiltreRole, l: 'Tous' }, { v: 'PASSAGER' as FiltreRole, l: 'Clients' }, { v: 'CHAUFFEUR' as FiltreRole, l: 'Chauffeurs' }];
   readonly statuts = [{ v: '' as FiltreStatut, l: 'Tous statuts' }, { v: 'ACTIF' as FiltreStatut, l: 'Actifs' }, { v: 'BLOQUE' as FiltreStatut, l: 'Bloqués' }, { v: 'KYC' as FiltreStatut, l: 'KYC à vérifier' }];
 
-  filtres = computed(() => {
-    const q = this.recherche().trim().toLowerCase();
-    const role = this.filtreRole();
-    const st = this.filtreStatut();
-    return this.utilisateurs().filter(u => {
-      if (role === 'PASSAGER' && !(u.role === 'PASSAGER' || u.role === 'PASSAGER_ET_CHAUFFEUR')) return false;
-      if (role === 'CHAUFFEUR' && !this.estChauffeur(u)) return false;
-      if (st === 'ACTIF' && u.statut !== 'ACTIF') return false;
-      if (st === 'BLOQUE' && u.statut !== 'BLOQUE') return false;
-      if (st === 'KYC' && (u.kycValide || !this.estChauffeur(u))) return false;
-      if (!q) return true;
-      return [u.nom, u.prenom, u.email, u.telephone, String(u.id)].some(x => (x ?? '').toLowerCase().includes(q));
-    });
-  });
+  /** Résultats de la page courante (le filtrage est fait par le serveur sur toute la base). */
+  filtres = this.utilisateurs;
+
+  private destroyRef = inject(DestroyRef);
+  private recherche$ = new Subject<string>();
+
+  constructor() {
+    this.recherche$.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.relancer());
+  }
+
+  surRecherche(v: string) {
+    this.recherche.set(v);
+    this.recherche$.next(v.trim());
+  }
+
+  relancer() {
+    this.page.set(0);
+    this.charger();
+  }
 
   ngOnInit() { this.charger(); }
 
   charger() {
     this.loading.set(true);
-    this.userSvc.getAllAdmin(this.page(), 100).subscribe({
+    const st = this.filtreStatut();
+    this.userSvc.getAllAdmin(this.page(), 50, {
+      recherche: this.recherche(),
+      role: this.filtreRole(),
+      statut: st === 'KYC' ? '' : st,
+      kyc: st === 'KYC' ? 'A_VERIFIER' : ''
+    }).subscribe({
       next: p => {
         this.utilisateurs.set(p.content ?? []);
         this.total.set(p.totalElements ?? 0);

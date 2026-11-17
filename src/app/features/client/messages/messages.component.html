@@ -8,10 +8,10 @@
     @for (c of conversations(); track c.contactId) {
       <button class="conv" [class.is-active]="c.contactId === activeContactId()" (click)="ouvrir(c)">
         <span class="lx-avatar" [class.is-support]="c.support">
-          @if (c.support) { <lx-icon name="help-circle" /> } @else { {{ initiales(c.nom) }} }
+          @if (c.support) { <lx-icon name="help-circle" /> } @else { {{ initiales(nomDe(c)) }} }
         </span>
         <span class="lx-list-body">
-          <span class="lx-list-title lx-truncate" style="display:block">{{ c.nom }}</span>
+          <span class="lx-list-title lx-truncate" style="display:block">{{ nomDe(c) }}</span>
           <span class="lx-list-sub">{{ c.sousTitre }}</span>
         </span>
         <lx-icon name="chevron-right" class="lx-chevron conv-chevron" [size]="16" />
@@ -29,10 +29,10 @@
       </button>
       @if (active(); as c) {
         <span class="lx-avatar" [class.is-support]="c.support">
-          @if (c.support) { <lx-icon name="help-circle" /> } @else { {{ initiales(c.nom) }} }
+          @if (c.support) { <lx-icon name="help-circle" /> } @else { {{ initiales(nomDe(c)) }} }
         </span>
         <div class="min-w-0">
-          <div class="thread-name lx-truncate">{{ c.nom }}</div>
+          <div class="thread-name lx-truncate">{{ nomDe(c) }}</div>
           <div class="thread-sub">{{ c.support ? 'Réponse en général sous quelques heures' : c.sousTitre }}</div>
         </div>
       }

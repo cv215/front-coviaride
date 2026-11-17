@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../core/services/admin.service';
 import { Signalement } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ProfilsService } from '../../../core/services/profils.service';
 
 @Component({
   selector: 'app-signalements',
@@ -47,7 +48,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
                 <strong class="motif">{{ s.motif }}</strong>
                 <span class="lx-badge" [ngClass]="getStatutBadge(s.statut)">{{ libelleStatut(s.statut) }}</span>
               </div>
-              <div class="lx-list-sub">Plaignant #{{ s.plaignantId }} contre #{{ s.misEnCauseId }} · Trajet #{{ s.trajetId }}</div>
+              <div class="lx-list-sub"><strong>{{ profils.nom(s.plaignantId) }}</strong> contre <strong>{{ profils.nom(s.misEnCauseId) }}</strong> · Trajet #{{ s.trajetId }}</div>
               <div class="lx-list-sub">{{ s.dateSignalement | date:'dd/MM/yyyy HH:mm' }} · Réf. #{{ s.id }}</div>
             </div>
           </div>
@@ -73,7 +74,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
               </div>
             } @else {
               <div class="report-actions">
-                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="bloquerMisEnCause(s)" [disabled]="busy() === s.id">Bloquer #{{ s.misEnCauseId }}</button>
+                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="bloquerMisEnCause(s)" [disabled]="busy() === s.id">Bloquer {{ profils.nom(s.misEnCauseId) }}</button>
                 <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="resolutionActive.set(s.id); resolutionTexte = ''">Traiter</button>
               </div>
             }
@@ -112,6 +113,7 @@ export class SignalementsComponent implements OnInit {
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
   private userSvc = inject(UtilisateurService);
+  profils = inject(ProfilsService);
 
   constructor(private adminSvc: AdminService) {}
 
@@ -120,7 +122,11 @@ export class SignalementsComponent implements OnInit {
   charger() {
     this.loading.set(true);
     this.adminSvc.getSignalements(this.filtreStatut()).subscribe({
-      next: p => { this.signalements.set(p.content ?? []); this.loading.set(false); },
+      next: p => {
+        this.signalements.set(p?.content ?? []);
+        this.profils.charger((p?.content ?? []).flatMap(x => [x.plaignantId, x.misEnCauseId]));
+        this.loading.set(false);
+      },
       error: err => { this.loading.set(false); this.toast.error('Chargement impossible', err); }
     });
   }
@@ -148,7 +154,7 @@ export class SignalementsComponent implements OnInit {
 
   async bloquerMisEnCause(s: Signalement) {
     const ok = await this.confirm.ask({
-      title: `Bloquer l'utilisateur #${s.misEnCauseId} ?`,
+      title: `Bloquer ${this.profils.nom(s.misEnCauseId)} ?`,
       message: `Suite au signalement « ${s.motif} ». L'utilisateur ne pourra plus se connecter.`,
       confirmLabel: 'Bloquer', danger: true
     });
@@ -160,7 +166,7 @@ export class SignalementsComponent implements OnInit {
           error: () => this.toast.warning('Connexion non bloquée', "Le profil est bloqué mais pas le compte de connexion — réessayez depuis Utilisateurs.")
         });
         this.busy.set(null);
-        this.toast.success('Utilisateur bloqué', `#${s.misEnCauseId}`);
+        this.toast.success('Utilisateur bloqué', this.profils.nom(s.misEnCauseId));
       },
       error: err => { this.busy.set(null); this.toast.error('Blocage impossible', err); }
     });

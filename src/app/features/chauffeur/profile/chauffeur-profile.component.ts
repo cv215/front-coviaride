@@ -9,6 +9,8 @@ import { ToastService, messageErreur } from '../../../core/services/toast.servic
 import { Utilisateur, Vehicule } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ApercuDocumentComponent, LIBELLES_DOCUMENTS } from '../../../shared/components/apercu-document/apercu-document.component';
+import { DocumentKyc, TypeDocument } from '../../../core/models';
 
 /** Identifiant du compte « Service client » côté chat. */
 const SUPPORT_ID = 1;
@@ -16,7 +18,7 @@ const SUPPORT_ID = 1;
 @Component({
   selector: 'app-chauffeur-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent, ApercuDocumentComponent],
   template: `
 <div class="lx-page profile">
 
@@ -49,23 +51,45 @@ const SUPPORT_ID = 1;
           <h3 class="lx-card-title" style="margin:0 0 .3rem">{{ kycValide() ? 'Votre profil est validé' : 'Faites vérifier votre profil' }}</h3>
           <p style="margin:0;font-size:.85rem;line-height:1.55">
             @if (kycValide()) {
-              Vos documents ont été contrôlés par l'équipe Coviaride. Vous pouvez publier des trajets et accepter des passagers.
+              Vos quatre justificatifs ont été contrôlés. Vous pouvez publier des trajets et accepter des passagers.
             } @else {
-              Envoyez ces documents au service client depuis la messagerie. Un administrateur les vérifie et valide votre compte.
+              Déposez une photo nette ou un PDF de chaque justificatif (5 Mo max). Votre compte est validé dès que les quatre sont acceptés.
             }
           </p>
         </div>
       </div>
+
+      <div class="lx-progress" [attr.aria-label]="nbValides() + ' documents validés sur 4'"><span [style.width.%]="nbValides() * 25"></span></div>
+
       <ul class="docs">
-        @for (d of documents; track d) {
-          <li><lx-icon [name]="kycValide() ? 'check-circle' : 'file'" [size]="16" /> {{ d }}</li>
+        @for (t of typesDocuments; track t) {
+          <li class="doc" [attr.data-statut]="docDe(t)?.statutVerification || 'ABSENT'">
+            <div class="doc-head">
+              <span class="doc-icon"><lx-icon [name]="iconeStatut(t)" [size]="18" /></span>
+              <div class="min-w-0" style="flex:1">
+                <div class="doc-title">{{ libelles[t] }}</div>
+                <div class="doc-sub">{{ libelleStatut(t) }}</div>
+              </div>
+            </div>
+            @if (docDe(t)?.statutVerification === 'REJETE' && docDe(t)?.motifRejet) {
+              <div class="doc-motif"><lx-icon name="info" [size]="13" /> {{ docDe(t)!.motifRejet }}</div>
+            }
+            <div class="doc-actions">
+              @if (docDe(t); as d) {
+                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="apercu.set(d)"><lx-icon name="eye" /> Voir</button>
+              }
+              @if (docDe(t)?.statutVerification !== 'VALIDE') {
+                <label class="lx-btn lx-btn-sm" [class.lx-btn-primary]="!docDe(t)" [class.lx-btn-secondary]="!!docDe(t)" [class.is-busy]="envoi() === t">
+                  @if (envoi() === t) { <lx-icon name="refresh" class="lx-spin" /> Envoi… }
+                  @else { <lx-icon name="download" style="transform:rotate(180deg)" /> {{ docDe(t) ? 'Remplacer' : 'Déposer' }} }
+                  <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden [disabled]="!!envoi()"
+                    (change)="deposer(t, $event)" />
+                </label>
+              }
+            </div>
+          </li>
         }
       </ul>
-      @if (!kycValide()) {
-        <a routerLink="/chauffeur/messages" [queryParams]="{ avec: supportId }" class="lx-btn lx-btn-primary">
-          <lx-icon name="send" /> Envoyer mes documents au support
-        </a>
-      }
     </section>
 
     <!-- Véhicules -->
@@ -139,6 +163,10 @@ const SUPPORT_ID = 1;
       </form>
     }
 
+    @if (apercu(); as d) {
+      <lx-apercu-document [utilisateurId]="monId()" [doc]="d" (fermer)="apercu.set(null)" />
+    }
+
     <div class="lx-list">
       <button class="lx-list-item is-danger" (click)="auth.deconnexion()">
         <lx-icon name="log-out" /><span class="lx-list-body">Se déconnecter</span>
@@ -155,18 +183,26 @@ const SUPPORT_ID = 1;
     .identity-name { font-size: 1.5rem; line-height: 1.2; margin-bottom: 0.2rem; }
     .rating { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--lx-amber); font-size: 0.8rem; font-weight: 500; }
     .kyc { display: flex; flex-direction: column; gap: 1.1rem; border-color: rgba(200, 146, 42, 0.3);
-      &.is-ok { border-color: rgba(52, 211, 153, 0.3); } .lx-btn { align-self: flex-start; } }
+      &.is-ok { border-color: rgba(52, 211, 153, 0.3); } }
     .lx-icon-tile.is-ok { background: rgba(52, 211, 153, 0.12); color: var(--lx-emerald); }
-    .docs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem;
-      li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.65rem 0.8rem; }
-      lx-icon { color: var(--lx-primary); } }
-    .is-ok .docs lx-icon { color: var(--lx-emerald); }
+    .docs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .doc { background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.85rem 0.95rem; display: flex; flex-direction: column; gap: 0.6rem;
+      border: 1px solid transparent; min-width: 0;
+      &[data-statut="VALIDE"] { border-color: rgba(52, 211, 153, 0.3); .doc-icon { color: var(--lx-emerald); background: rgba(52, 211, 153, 0.12); } }
+      &[data-statut="REJETE"] { border-color: rgba(224, 83, 74, 0.35); .doc-icon { color: var(--lx-red); background: rgba(224, 83, 74, 0.12); } }
+      &[data-statut="EN_ATTENTE"] .doc-icon { color: var(--lx-amber); background: rgba(251, 191, 36, 0.12); } }
+    .doc-head { display: flex; align-items: center; gap: 0.7rem; }
+    .doc-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--lx-card); color: var(--lx-muted-fg); flex-shrink: 0; }
+    .doc-title { font-size: 0.85rem; font-weight: 500; }
+    .doc-sub { font-size: 0.72rem; color: var(--lx-muted-fg); }
+    .doc-motif { display: flex; gap: 0.35rem; font-size: 0.75rem; color: #fca5a5; line-height: 1.4; lx-icon { margin-top: 2px; } }
+    .doc-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: auto; label.is-busy { pointer-events: none; opacity: 0.7; } }
     .plate { font-size: 0.75rem; background: var(--lx-secondary); padding: 0.2rem 0.5rem; border-radius: 6px; letter-spacing: 0.06em; }
     .form-actions { display: flex; justify-content: flex-end; }
     @media (max-width: 520px) {
       .identity { flex-direction: column; text-align: center; .lx-row { justify-content: center; } }
       .docs { grid-template-columns: 1fr; }
-      .kyc .lx-btn, .form-actions .lx-btn { width: 100%; align-self: stretch; }
+      .form-actions .lx-btn { width: 100%; }
     }
   `]
 })
@@ -178,7 +214,12 @@ export class ChauffeurProfileComponent implements OnInit {
   private fb = inject(FormBuilder);
 
   readonly supportId = SUPPORT_ID;
-  readonly documents = ['Permis de conduire', "Pièce d'identité (CNI)", 'Assurance du véhicule', 'Carte grise'];
+  readonly typesDocuments: TypeDocument[] = ['PERMIS', 'CNI', 'ASSURANCE', 'CARTE_GRISE'];
+  readonly libelles = LIBELLES_DOCUMENTS;
+  documents = signal<DocumentKyc[]>([]);
+  envoi = signal<TypeDocument | null>(null);
+  apercu = signal<DocumentKyc | null>(null);
+  nbValides = computed(() => this.typesDocuments.filter(t => this.docDe(t)?.statutVerification === 'VALIDE').length);
 
   chargement = signal(true);
   enregistrement = signal(false);
@@ -215,6 +256,49 @@ export class ChauffeurProfileComponent implements OnInit {
       error: err => { this.chargement.set(false); this.toast.error('Profil indisponible', err); }
     });
     this.userSvc.getVehicules(u.compteId).subscribe({ next: v => this.vehicules.set(v ?? []), error: () => {} });
+    this.userSvc.getDocuments(u.compteId).subscribe({ next: d => this.documents.set(d ?? []), error: () => {} });
+  }
+
+  monId(): number { return this.auth.currentUser()?.compteId ?? 0; }
+
+  docDe(t: TypeDocument): DocumentKyc | undefined {
+    return this.documents().find(d => d.typeDocument === t);
+  }
+
+  libelleStatut(t: TypeDocument): string {
+    const d = this.docDe(t);
+    if (!d) return 'À déposer';
+    return ({ EN_ATTENTE: 'Déposé · en cours de vérification', VALIDE: 'Validé', REJETE: 'Refusé · à remplacer' } as Record<string, string>)[d.statutVerification] ?? d.statutVerification;
+  }
+
+  iconeStatut(t: TypeDocument): string {
+    const d = this.docDe(t);
+    if (!d) return 'file';
+    return ({ EN_ATTENTE: 'clock', VALIDE: 'check-circle', REJETE: 'alert' } as Record<string, string>)[d.statutVerification] ?? 'file';
+  }
+
+  deposer(type: TypeDocument, ev: Event) {
+    const champ = ev.target as HTMLInputElement;
+    const fichier = champ.files?.[0];
+    champ.value = '';
+    const u = this.auth.currentUser();
+    if (!fichier || !u) return;
+    if (fichier.size > 5 * 1024 * 1024) { this.toast.warning('Fichier trop volumineux', '5 Mo maximum.'); return; }
+    if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(fichier.type)) {
+      this.toast.warning('Format non accepté', 'Envoyez une photo (JPG, PNG, WEBP) ou un PDF.');
+      return;
+    }
+    this.envoi.set(type);
+    this.userSvc.deposerDocument(u.compteId, type, fichier).subscribe({
+      next: doc => {
+        this.envoi.set(null);
+        this.documents.update(arr => [doc, ...arr.filter(d => d.typeDocument !== type)]);
+        // Un nouveau dépôt remet le profil en vérification.
+        this.profil.update(p => p ? { ...p, kycValide: false } : p);
+        this.toast.success('Document envoyé', `${this.libelles[type]} · en attente de vérification.`);
+      },
+      error: err => { this.envoi.set(null); this.toast.error('Envoi impossible', err); }
+    });
   }
 
   initiales(): string {
@@ -240,10 +324,7 @@ export class ChauffeurProfileComponent implements OnInit {
     const u = this.auth.currentUser();
     if (!u || this.formMdp.invalid) return;
     this.enregistrement.set(true);
-    this.http.put<{ message: string }>(`${environment.apiUrl}/utilisateurs/profil/${u.compteId}/changer-mot-de-passe`, {
-      ancienMotDePasse: this.formMdp.value.ancien,
-      nouveauMotDePasse: this.formMdp.value.nouveau
-    }).subscribe({
+    this.auth.changerMotDePasse(this.formMdp.value.ancien!, this.formMdp.value.nouveau!).subscribe({
       next: res => {
         this.enregistrement.set(false);
         this.formMdp.reset();

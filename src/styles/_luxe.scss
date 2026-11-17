@@ -463,6 +463,28 @@
   .data-table tr:hover td { background: rgba(26, 29, 40, 0.3); }
 }
 
+/* ── Carte Leaflet (thème sombre) ─────────────────────────────── */
+.lx {
+  .leaflet-container { background: #0d0f12; font-family: var(--lx-font-body); }
+  /* Fond OpenStreetMap passé en sombre (inversion + rotation de teinte pour garder les couleurs de l'eau et des parcs) */
+  .lx-tuiles-sombres { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.6); }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--lx-popover); color: var(--lx-fg); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+  .leaflet-popup-content-wrapper { border: 1px solid var(--lx-border); border-radius: 12px; }
+  .leaflet-popup-content { margin: 10px 14px; font-size: 0.82rem; line-height: 1.45; }
+  .leaflet-container a.leaflet-popup-close-button { color: var(--lx-muted-fg); }
+  .leaflet-bar { border: 1px solid var(--lx-border-strong) !important; border-radius: 10px !important; overflow: hidden; }
+  .leaflet-bar a { background: rgba(17, 18, 20, 0.92); color: var(--lx-fg); border-bottom-color: var(--lx-border) !important;
+    width: 36px; height: 36px; line-height: 36px;
+    &:hover { background: #1a1d28; color: var(--lx-fg); } }
+  .leaflet-control-attribution { background: rgba(9, 10, 11, 0.7) !important; color: var(--lx-muted-fg);
+    a { color: rgba(240, 236, 227, 0.7); } }
+  /* Véhicule : flèche orientée selon le cap, halo pulsé */
+  .lx-vehicule { position: relative; }
+  .lx-vehicule-halo { position: absolute; inset: 0; border-radius: 50%; background: rgba(200, 146, 42, 0.35); animation: lx-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+  .lx-vehicule-corps { position: absolute; inset: 6px; border-radius: 50%; background: var(--lx-primary); border: 3px solid #090a0b;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; transition: transform 0.6s ease; }
+}
+
 /* Page entière sombre (barre de défilement native, fond sous le contenu) quand un écran Luxe est affiché */
 html:has(.lx) { color-scheme: dark; background: #090a0b; }
 html:has(.lx) body { background: #090a0b; }

@@ -43,7 +43,7 @@
                 <span class="lx-badge" [ngClass]="getBadge(d.statut)">{{ getLabel(d.statut) }}</span>
               </div>
               <div class="meta">
-                <span><lx-icon name="user" [size]="13" /> Passager #{{ d.passagerId }}</span>
+                <span><lx-icon name="user" [size]="13" /> {{ profils.nom(d.passagerId, 'Passager') }}</span>
                 <span><lx-icon name="receipt" [size]="13" /> Réservation CR-{{ d.reservationId }}</span>
                 <span><lx-icon name="clock" [size]="13" /> {{ d.dateCreation | date:'dd/MM/yyyy HH:mm' }}</span>
               </div>

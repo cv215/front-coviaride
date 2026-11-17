@@ -103,6 +103,10 @@ export const routes: Routes = [
       {
        path: 'messages',
        loadComponent: () => import('./features/client/messages/messages.component').then(m => m.MessagesComponent)
+      },
+      {
+        path: 'suivi/:id',
+        loadComponent: () => import('./features/client/tracking/tracking.component').then(m => m.TrackingComponent)
       }
     ]
   },

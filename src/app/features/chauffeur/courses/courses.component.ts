@@ -12,7 +12,10 @@ import { TrajetService } from '../../../core/services/trajet.service';
 import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { Trajet, Vehicule } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
-import { ActivatedRoute } from '@angular/router';
+import { DecisionReservationComponent } from '../../../shared/components/decision-reservation/decision-reservation.component';
+import { ProfilsService } from '../../../core/services/profils.service';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { GeoService } from '../../../core/services/geo.service';
 
 type FiltreTrajet = 'actifs' | 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'ANNULE';
 
@@ -30,7 +33,7 @@ function trajetValide(g: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-courses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, IconComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent, DecisionReservationComponent],
   template: `
 <div class="lx-page">
   <div class="lx-page-head">
@@ -212,6 +215,7 @@ function trajetValide(g: AbstractControl): ValidationErrors | null {
                 } @else {
                   <button class="lx-btn lx-btn-secondary lx-btn-sm" (click)="startLiveTracking(t)"><lx-icon name="map-pin" /> Partager ma position</button>
                 }
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="['/chauffeur/suivi', t.id]"><lx-icon name="map-pin" /> Carte</a>
                 <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="terminer(t)" [disabled]="actionEnCours() === t.id"><lx-icon name="check-circle" /> Terminer</button>
               }
             </div>
@@ -226,18 +230,17 @@ function trajetValide(g: AbstractControl): ValidationErrors | null {
               } @else {
                 @for (r of passagers()[t.id]; track r.id) {
                   <div class="pax-row">
-                    <span class="lx-avatar" style="width:34px;height:34px;font-size:.75rem">P</span>
+                    <span class="lx-avatar" style="width:34px;height:34px;font-size:.75rem">{{ profils.initiales(r.passagerId) }}</span>
                     <div class="lx-list-body">
-                      <span class="lx-list-title">Passager #{{ r.passagerId }}</span>
+                      <span class="lx-list-title">{{ profils.nom(r.passagerId, 'Passager') }}</span>
                       <span class="lx-list-sub">{{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}@if (r.pointArret) { · arrêt {{ r.pointArret }} } · {{ (r.montantTotal ?? 0) | number:'1.0-0' }} FCFA</span>
                     </div>
                     <div class="pax-right">
                       <span class="lx-badge" [ngClass]="badgeReservation(r)">{{ libelleReservation(r) }}</span>
-                      @if (r.statut === 'EN_ATTENTE') {
-                        <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="refuserReservation(t, r)" [disabled]="actionEnCours() === r.id">Refuser</button>
-                        <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="accepterReservation(t, r)" [disabled]="actionEnCours() === r.id">Accepter</button>
-                      }
                     </div>
+                    @if (r.statut === 'EN_ATTENTE') {
+                      <lx-decision-reservation class="pax-decision" [rez]="r" (traitee)="surDecision(t, $event)" />
+                    }
                   </div>
                 }
               }
@@ -276,6 +279,7 @@ function trajetValide(g: AbstractControl): ValidationErrors | null {
     .pax { margin-top: 1rem; border-radius: var(--lx-r-md); background: var(--lx-bg); border: 1px solid var(--lx-border); overflow: hidden; animation: lx-fade 0.2s; }
     .pax-row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.8rem 1rem; border-bottom: 1px solid var(--lx-border); &:last-child { border-bottom: 0; } }
     .pax-right { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+    .pax-decision { flex-basis: 100%; }
     .pax-empty { padding: 1.1rem; text-align: center; color: var(--lx-muted-fg); font-size: 0.85rem; }
 
     @media (max-width: 640px) {
@@ -292,6 +296,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
   private rezSvc = inject(ReservationService);
+  profils = inject(ProfilsService);
 
   filtre = signal<FiltreTrajet>('actifs');
   readonly filtresTrajet: { id: FiltreTrajet; label: string }[] = [
@@ -316,6 +321,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
   vehiculesCharges = signal(false);
   placesMax = signal(20);
   private route = inject(ActivatedRoute);
+  private geo = inject(GeoService);
   trackingByTrajet = new Map<number, number>();
 
   form = this.fb.group({
@@ -423,13 +429,18 @@ ajouterVehicule() {
     this.error.set('');
   }
 
-  publier() {
-    if (this.form.invalid) return;
+  async publier() {
+    if (this.form.invalid || this.loading()) return;
     const u = this.auth.currentUser();
     if (!u) return;
     this.loading.set(true); this.error.set('');
     const v = this.form.value;
+    // Coordonnées des villes : la carte de suivi des passagers trace l'itinéraire réel.
+    // Un échec de géocodage ne bloque pas la publication (la carte géocodera plus tard).
+    const [dep, arr] = await Promise.all([this.geo.geocoder(v.villeDepart), this.geo.geocoder(v.villeArrivee)]);
     this.trajetSvc.creer(u.compteId, {
+      latDepart: dep?.lat, lngDepart: dep?.lng,
+      latArrivee: arr?.lat, lngArrivee: arr?.lng,
       vehiculeId: +v.vehiculeId!,
       villeDepart: v.villeDepart!,
       villeArrivee: v.villeArrivee!,
@@ -560,37 +571,22 @@ ajouterVehicule() {
       next: p => {
         const list = (p.content ?? []).filter(r => r.statut !== 'ANNULEE' && r.statut !== 'REFUSEE');
         this.passagers.update(m => ({ ...m, [t.id]: list }));
+        this.profils.charger(list.map(r => r.passagerId));
         this.chargementPassagers.set(false);
       },
       error: err => { this.chargementPassagers.set(false); this.toast.error('Passagers indisponibles', err); }
     });
   }
 
-  accepterReservation(t: Trajet, r: Reservation) {
-    const u = this.auth.currentUser(); if (!u) return;
-    this.actionEnCours.set(r.id);
-    this.rezSvc.accepter(r.id, u.compteId, Number(r.prixParPlace ?? 0)).subscribe({
-      next: maj => {
-        this.actionEnCours.set(null);
-        this.passagers.update(m => ({ ...m, [t.id]: (m[t.id] ?? []).map(x => x.id === r.id ? { ...x, ...maj } : x) }));
-        this.trajets.update(arr => arr.map(x => x.id === t.id ? { ...x, placesDisponibles: Math.max(0, x.placesDisponibles - r.nombrePlaces) } : x));
-        this.toast.success('Réservation acceptée', `Passager #${r.passagerId} · ${r.nombrePlaces} place(s)`);
-      },
-      error: err => { this.actionEnCours.set(null); this.toast.error("Impossible d'accepter", err); }
-    });
-  }
-
-  refuserReservation(t: Trajet, r: Reservation) {
-    const u = this.auth.currentUser(); if (!u) return;
-    this.actionEnCours.set(r.id);
-    this.rezSvc.refuser(r.id, u.compteId).subscribe({
-      next: () => {
-        this.actionEnCours.set(null);
-        this.passagers.update(m => ({ ...m, [t.id]: (m[t.id] ?? []).filter(x => x.id !== r.id) }));
-        this.toast.info('Réservation refusée');
-      },
-      error: err => { this.actionEnCours.set(null); this.toast.error('Impossible de refuser', err); }
-    });
+  surDecision(t: Trajet, e: { avant: Reservation; apres: Reservation | null }) {
+    const { avant, apres } = e;
+    this.passagers.update(m => ({
+      ...m,
+      [t.id]: apres ? (m[t.id] ?? []).map(x => x.id === avant.id ? apres : x) : (m[t.id] ?? []).filter(x => x.id !== avant.id)
+    }));
+    if (apres?.statut === 'ACCEPTEE') {
+      this.trajets.update(arr => arr.map(x => x.id === t.id ? { ...x, placesDisponibles: Math.max(0, x.placesDisponibles - avant.nombrePlaces) } : x));
+    }
   }
 
   // ─── Affichage ─────────────────────────────────────────────────────────
