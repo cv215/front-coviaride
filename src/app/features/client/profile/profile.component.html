@@ -1,102 +1,222 @@
-<div>
-  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:2rem;flex-wrap:wrap">
-    <a routerLink="/client/dashboard" style="color:var(--color-muted);text-decoration:none;font-size:0.9rem">← Accueil</a>
-    <div>
-      <h2 style="margin:0">Mon profil</h2>
-    </div>
-  </div>
+<div class="lx-page profile">
 
   @if (chargement()) {
-    <div style="text-align:center;padding:3rem;color:var(--color-muted)">Chargement du profil...</div>
+    <div class="lx-stack"><div class="lx-skeleton" style="min-height:120px"></div><div class="lx-skeleton" style="min-height:260px"></div></div>
   }
 
+  <!-- Profil introuvable : formulaire de création -->
   @if (!chargement() && erreur()) {
-    <div class="card" style="max-width:540px;border-radius:18px;background:#14161c;border:1px solid rgba(255,255,255,0.08);">
-      <div class="alert alert-error">{{ erreur() }}</div>
+    <div class="lx-card col">
+      <div class="lx-alert lx-alert-error" style="margin-bottom:1.25rem"><lx-icon name="alert" /> {{ erreur() }}</div>
+      @if (erreur().startsWith('Profil introuvable')) {
+        <h3 class="lx-card-title">Créer mon profil</h3>
+        <form [formGroup]="formCreation" (ngSubmit)="creerProfil()" class="lx-stack">
+          <div class="lx-form-grid">
+            <div>
+              <label class="lx-label-plain" for="c-prenom">Prénom</label>
+              <input id="c-prenom" class="lx-input" formControlName="prenom" autocomplete="given-name" />
+            </div>
+            <div>
+              <label class="lx-label-plain" for="c-nom">Nom</label>
+              <input id="c-nom" class="lx-input" formControlName="nom" autocomplete="family-name" />
+            </div>
+          </div>
+          <div>
+            <label class="lx-label-plain" for="c-tel">Téléphone</label>
+            <input id="c-tel" class="lx-input" type="tel" formControlName="telephone" placeholder="6XXXXXXXX" autocomplete="tel" />
+          </div>
+          <div>
+            <label class="lx-label-plain" for="c-dn">Date de naissance</label>
+            <input id="c-dn" class="lx-input" type="date" formControlName="dateNaissance" [max]="maxDate" />
+          </div>
+          @if (creationErreur()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ creationErreur() }}</div> }
+          @if (creationMsg()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ creationMsg() }}</div> }
+          <button type="submit" class="lx-btn lx-btn-primary" [disabled]="creationLoading()">
+            {{ creationLoading() ? 'Création…' : 'Créer mon profil' }}
+          </button>
+        </form>
+      } @else {
+        <button class="lx-btn lx-btn-secondary" (click)="recharger()"><lx-icon name="refresh" /> Réessayer</button>
+      }
     </div>
   }
 
   @if (!chargement() && !erreur() && profil()) {
 
     <!-- Carte identité -->
-    <div class="card" style="
-        display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem;padding:1.5rem;flex-wrap:wrap;
-        border-radius:18px;background:#14161c;border:1px solid rgba(255,255,255,0.08);
-      ">
-      <label style="width:72px;height:72px;border-radius:50%;background:rgba(215,177,90,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;overflow:hidden;">
+    <section class="lx-card identity lx-rise">
+      <label class="photo" title="Changer la photo">
         @if (photoPreviewUrl) {
-          <img [src]="photoPreviewUrl" style="width:100%;height:100%;object-fit:cover;" alt="Photo de profil" />
+          <img [src]="photoPreviewUrl" alt="Photo de profil" />
         } @else {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:34px;height:34px;color:#d7b15a;">
-            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/>
-          </svg>
+          <span class="initials">{{ initiales() }}</span>
         }
-        <input type="file" accept="image/*" (change)="onPhotoSelected($event)" style="display:none" />
+        <span class="photo-edit"><lx-icon name="camera" [size]="14" /></span>
+        <input type="file" accept="image/*" (change)="onPhotoSelected($event)" hidden />
       </label>
-      <div style="flex:1;min-width:220px">
-        <div style="font-size:1.5rem;font-weight:800;color:#f0f5fb;">{{ profil()!.prenom }} {{ profil()!.nom }}</div>
-        <div style="color:var(--color-muted);font-size:0.95rem;margin-top:0.2rem">{{ profil()!.email }} · {{ profil()!.telephone }}</div>
-        <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;color:#d7b15a;font-size:0.95rem;">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;"><path d="M13 2 3 14h6l-1 8 10-12h-6l1-8Z"/></svg>
-            {{ statsClient().pointsFidelite | number:'1.0-0':'fr' }} points fidélité
+      <div class="identity-body">
+        <div class="identity-name lx-display">{{ profil()!.prenom }} {{ profil()!.nom }}</div>
+        <div class="lx-muted identity-sub">{{ profil()!.email }}@if (profil()!.telephone) { · {{ profil()!.telephone }} }</div>
+        @if (profil()!.noteMoyenne) {
+          <div class="identity-rating">
+            <lx-icon name="star" [fill]="true" [size]="14" />
+            <span>{{ profil()!.noteMoyenne | number:'1.1-1' }} · {{ profil()!.nombreAvis || 0 }} avis</span>
           </div>
-        </div>
-    </div>
-    <!-- Liste des réglages -->
-    <div class="card" style="padding:0;overflow:hidden;border-radius:18px;background:#14161c;border:1px solid rgba(255,255,255,0.08);">
+        }
+      </div>
+    </section>
 
-      <a routerLink="/client/transactions" style="text-decoration:none;color:inherit;display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    <!-- Onglets d'édition -->
+    <nav class="lx-tabs" role="tablist" style="margin-top:1.5rem">
+      @for (o of onglets; track o.id) {
+        <button role="tab" class="lx-tab" [class.is-active]="ongletActif() === o.id" [attr.aria-selected]="ongletActif() === o.id"
+          (click)="ongletActif.set(o.id)">{{ o.label }}</button>
+      }
+    </nav>
+
+    @switch (ongletActif()) {
+      @case ('infos') {
+        <form class="lx-card lx-stack" [formGroup]="formInfos" (ngSubmit)="sauvegarderInfos()">
+          <div class="lx-form-grid">
+            <div>
+              <label class="lx-label-plain" for="p-prenom">Prénom</label>
+              <input id="p-prenom" class="lx-input" formControlName="prenom" autocomplete="given-name" />
+              @if (fi('prenom')?.invalid && fi('prenom')?.touched) { <div class="lx-error">2 caractères minimum</div> }
+            </div>
+            <div>
+              <label class="lx-label-plain" for="p-nom">Nom</label>
+              <input id="p-nom" class="lx-input" formControlName="nom" autocomplete="family-name" />
+              @if (fi('nom')?.invalid && fi('nom')?.touched) { <div class="lx-error">2 caractères minimum</div> }
+            </div>
           </div>
-          <div style="font-weight:700;">Moyens de paiement</div>
-        </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-muted);flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-      </a>
-
-      <button (click)="shareReferral()" style="width:100%;text-align:left;background:transparent;border:none;cursor:pointer;color:inherit;display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M20 12v9H4v-9"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7c-1.5-3-6-3-6 0s4.5 3 6 0Z"/><path d="M12 7c1.5-3 6-3 6 0s-4.5 3-6 0Z"/></svg>
+          <div class="lx-form-grid">
+            <div>
+              <label class="lx-label-plain" for="p-tel">Téléphone</label>
+              <div class="lx-field has-icon">
+                <span class="lx-field-icon"><lx-icon name="phone" /></span>
+                <input id="p-tel" class="lx-input" type="tel" formControlName="telephone" placeholder="6XXXXXXXX" autocomplete="tel" />
+              </div>
+              @if (fi('telephone')?.invalid && fi('telephone')?.touched) { <div class="lx-error">Numéro camerounais invalide (ex : 650000000)</div> }
+            </div>
+            <div>
+              <label class="lx-label-plain" for="p-dn">Date de naissance</label>
+              <input id="p-dn" class="lx-input" type="date" formControlName="dateNaissance" [max]="maxDate" />
+              @if (fi('dateNaissance')?.invalid && fi('dateNaissance')?.touched) { <div class="lx-error">Date obligatoire</div> }
+            </div>
           </div>
           <div>
-            <div style="font-weight:700;">Code de parrainage</div>
-            <div style="color:var(--color-muted);font-size:0.9rem;letter-spacing:0.06em;">{{ referralCode() }}</div>
+            <label class="lx-label-plain">Email</label>
+            <input class="lx-input" [value]="profil()!.email" readonly />
+            <div class="lx-help">L'adresse email sert d'identifiant et ne peut pas être modifiée ici.</div>
           </div>
-        </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-muted);flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-      </button>
+          @if (infosErreur()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ infosErreur() }}</div> }
+          @if (infosSuccess()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ infosSuccess() }}</div> }
+          <div class="form-actions">
+            <button type="submit" class="lx-btn lx-btn-primary" [disabled]="infosLoading() || formInfos.pristine">
+              {{ infosLoading() ? 'Enregistrement…' : 'Enregistrer les modifications' }}
+            </button>
+          </div>
+        </form>
+      }
 
-      <a routerLink="/client/securite" style="text-decoration:none;color:inherit;display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+      @case ('password') {
+        <form class="lx-card lx-stack" [formGroup]="formPwd" (ngSubmit)="changerMdp()">
+          <div>
+            <label class="lx-label-plain" for="pw-a">Mot de passe actuel</label>
+            <div class="lx-field has-icon has-action">
+              <span class="lx-field-icon"><lx-icon name="lock" /></span>
+              <input id="pw-a" class="lx-input" [type]="showA ? 'text' : 'password'" formControlName="ancien" autocomplete="current-password" />
+              <button type="button" class="lx-field-action" (click)="showA = !showA" [attr.aria-label]="showA ? 'Masquer' : 'Afficher'"><lx-icon [name]="showA ? 'eye-off' : 'eye'" /></button>
+            </div>
           </div>
-          <div style="font-weight:700;">Sécurité et confidentialité</div>
+          <div>
+            <label class="lx-label-plain" for="pw-n">Nouveau mot de passe</label>
+            <div class="lx-field has-icon has-action">
+              <span class="lx-field-icon"><lx-icon name="lock" /></span>
+              <input id="pw-n" class="lx-input" [type]="showN ? 'text' : 'password'" formControlName="nouveau" autocomplete="new-password" />
+              <button type="button" class="lx-field-action" (click)="showN = !showN" [attr.aria-label]="showN ? 'Masquer' : 'Afficher'"><lx-icon [name]="showN ? 'eye-off' : 'eye'" /></button>
+            </div>
+            @if (fp('nouveau')?.invalid && fp('nouveau')?.touched) {
+              <div class="lx-error">8 caractères minimum, avec une majuscule, une minuscule et un chiffre.</div>
+            } @else {
+              <div class="lx-help">8 caractères minimum, avec une majuscule, une minuscule et un chiffre.</div>
+            }
+          </div>
+          <div>
+            <label class="lx-label-plain" for="pw-c">Confirmer le nouveau mot de passe</label>
+            <div class="lx-field has-icon has-action">
+              <span class="lx-field-icon"><lx-icon name="lock" /></span>
+              <input id="pw-c" class="lx-input" [type]="showC ? 'text' : 'password'" formControlName="confirm" autocomplete="new-password" />
+              <button type="button" class="lx-field-action" (click)="showC = !showC" [attr.aria-label]="showC ? 'Masquer' : 'Afficher'"><lx-icon [name]="showC ? 'eye-off' : 'eye'" /></button>
+            </div>
+            @if (formPwd.hasError('mismatch') && fp('confirm')?.touched) { <div class="lx-error">Les mots de passe ne correspondent pas.</div> }
+          </div>
+          @if (pwdErreur()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ pwdErreur() }}</div> }
+          @if (pwdSuccess()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ pwdSuccess() }}</div> }
+          <div class="form-actions">
+            <button type="submit" class="lx-btn lx-btn-primary" [disabled]="pwdLoading()">
+              {{ pwdLoading() ? 'Modification…' : 'Changer le mot de passe' }}
+            </button>
+          </div>
+        </form>
+      }
+
+      @case ('urgence') {
+        <div class="lx-card lx-stack">
+          <p style="margin:0;font-size:.875rem">Ces personnes peuvent être prévenues en cas d'incident pendant un trajet.</p>
+          <div class="lx-list">
+            @for (c of profil()!.contactsUrgence || []; track $index) {
+              <div class="lx-list-item" style="cursor:default">
+                <span class="lx-icon-tile is-soft"><lx-icon name="phone" [size]="18" /></span>
+                <span class="lx-list-body"><span class="lx-list-title">{{ c }}</span></span>
+                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="supprimerContact($index)" aria-label="Supprimer ce contact">
+                  <lx-icon name="trash" />
+                </button>
+              </div>
+            } @empty {
+              <div class="lx-list-item lx-muted" style="cursor:default">Aucun contact d'urgence enregistré.</div>
+            }
+          </div>
+          <form class="add-contact" (ngSubmit)="ajouterContact()">
+            <input class="lx-input" name="contact" [(ngModel)]="nouveauContact" placeholder="Nom et numéro (ex : Maman · 699000000)" />
+            <button type="submit" class="lx-btn lx-btn-primary" [disabled]="urgenceLoading() || !nouveauContact.trim()">
+              <lx-icon name="plus" /> Ajouter
+            </button>
+          </form>
+          @if (urgenceMsg()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ urgenceMsg() }}</div> }
         </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-muted);flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+      }
+    }
+
+    <!-- Réglages -->
+    <div class="lx-list" style="margin-top:1.5rem">
+      <a routerLink="/client/portefeuille" class="lx-list-item">
+        <lx-icon name="credit-card" class="lx-muted" />
+        <span class="lx-list-body">Moyens de paiement</span>
+        <lx-icon name="chevron-right" class="lx-chevron" />
       </a>
-
-      <a routerLink="/client/parametres" style="text-decoration:none;color:inherit;display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-          </div>
-          <div style="font-weight:700;">Paramètres du compte</div>
-        </div>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-muted);flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-      </a>
-
-      <button (click)="logout()" style="width:100%;text-align:left;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.4rem;">
-        <div style="display:flex;align-items:center;gap:0.9rem;">
-          <div style="width:42px;height:42px;border-radius:12px;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width:18px;height:18px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-          </div>
-          <div style="font-weight:700;color:#ef4444;">Se déconnecter</div>
-        </div>
+      <button class="lx-list-item" (click)="shareReferral()">
+        <lx-icon name="gift" class="lx-muted" />
+        <span class="lx-list-body">
+          <span class="lx-list-title">Code de parrainage</span>
+          <span class="lx-list-sub lx-mono">{{ referralCode() || 'Indisponible pour le moment' }}</span>
+        </span>
+        @if (referralCode()) { <span class="lx-badge lx-badge-gold">Partager</span> }
       </button>
-
+      <a routerLink="/client/remboursement" class="lx-list-item">
+        <lx-icon name="rotate-ccw" class="lx-muted" />
+        <span class="lx-list-body">Remboursements</span>
+        <lx-icon name="chevron-right" class="lx-chevron" />
+      </a>
+      <button class="lx-list-item" (click)="ongletActif.set('password'); scrollTop()">
+        <lx-icon name="shield" class="lx-muted" />
+        <span class="lx-list-body">Sécurité et confidentialité</span>
+        <lx-icon name="chevron-right" class="lx-chevron" />
+      </button>
+      <button class="lx-list-item is-danger" (click)="logout()">
+        <lx-icon name="log-out" />
+        <span class="lx-list-body">Se déconnecter</span>
+      </button>
     </div>
   }
 </div>

@@ -1,99 +1,33 @@
-@keyframes spin {
-      from { transform:rotate(0deg); }
-      to   { transform:rotate(360deg); }
-    }
-:host {
-  display: block;
+:host { display: block; }
 
-  --gold: #d7b15a;
-  --gold-soft: rgba(215, 177, 90, 0.12);
-  --card-bg: #14161c;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --row-border: rgba(255, 255, 255, 0.06);
-  --row-bg: rgba(255, 255, 255, 0.02);
-  --icon-bg-neutral: rgba(255, 255, 255, 0.04);
-  --danger: #ef4444;
-  --danger-soft: rgba(239, 68, 68, 0.1);
+.profile { max-width: 640px; }
+.col { max-width: 640px; }
+
+.identity { display: flex; align-items: center; gap: 1.25rem; }
+.photo {
+  position: relative; width: 80px; height: 80px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+  background: rgba(200, 146, 42, 0.2); box-shadow: 0 0 0 2px rgba(200, 146, 42, 0.3);
+  display: flex; align-items: center; justify-content: center;
+  img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  &:hover .photo-edit { transform: scale(1.08); }
 }
-
-// ── Carte identité ────────────────────────────────────────────────────────
-.card {
-  transition: border-color 0.2s ease, background 0.2s ease;
+.initials { font-family: var(--lx-font-display); font-size: 1.75rem; color: var(--lx-primary); }
+.photo-edit {
+  position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--lx-primary); color: var(--lx-primary-fg); border: 2px solid var(--lx-card);
+  display: flex; align-items: center; justify-content: center; transition: transform 0.15s;
 }
+.identity-body { min-width: 0; }
+.identity-name { font-size: 1.5rem; line-height: 1.2; margin-bottom: 0.2rem; }
+.identity-sub { font-size: 0.85rem; overflow-wrap: anywhere; }
+.identity-rating { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem; color: var(--lx-amber); font-size: 0.85rem; font-weight: 500; }
 
-// ── Avatar / upload photo ────────────────────────────────────────────────
-label {
-  position: relative;
-  transition: opacity 0.2s ease;
+.form-actions { display: flex; justify-content: flex-end; }
+.add-contact { display: flex; gap: 0.6rem; .lx-input { flex: 1; } }
 
-  &:hover {
-    opacity: 0.85;
-  }
-}
-
-// ── Lignes cliquables (adresses, réglages) ───────────────────────────────
-a[routerLink],
-button {
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.05);
-  }
-}
-
-// Ligne "Se déconnecter" garde une teinte rouge au survol
-button:has(> div > div[style*="ef4444"]) {
-  &:hover {
-    background: var(--danger-soft);
-  }
-}
-
-// ── Adresses enregistrées ────────────────────────────────────────────────
-div[style*="border-radius:12px"][style*="background:rgba(255,255,255,0.02)"] {
-  transition: border-color 0.2s ease, background 0.2s ease;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--gold);
-    background: rgba(215, 177, 90, 0.05);
-  }
-}
-
-// ── Bouton "+" ajouter une adresse ───────────────────────────────────────
-.btn-ghost {
-  transition: transform 0.15s ease, color 0.15s ease;
-
-  &:hover {
-    transform: scale(1.1);
-    color: var(--gold);
-  }
-}
-
-// ── Bouton partager (code de parrainage) ─────────────────────────────────
-.btn-sm {
-  transition: background 0.2s ease, filter 0.2s ease;
-
-  &:hover {
-    filter: brightness(1.1);
-  }
-}
-
-// ── Alerte d'erreur ───────────────────────────────────────────────────────
-.alert-error {
-  border-radius: 10px;
-}
-
-// ── Responsive ─────────────────────────────────────────────────────────────
-@media (max-width: 640px) {
-  .card {
-    padding: 1.1rem !important;
-  }
-}
-
-.row-danger:hover {
-  background: var(--danger-soft);
+@media (max-width: 520px) {
+  .identity { flex-direction: column; text-align: center; }
+  .identity-rating { justify-content: center; }
+  .form-actions .lx-btn { width: 100%; }
+  .add-contact { flex-direction: column; }
 }

@@ -1,39 +1,44 @@
-  :host {
-    --color-primary: #d7b15a;
-    --color-surface: #14181f;
-    --color-bg: #0a0d12;
-    --color-border: rgba(212, 169, 76, 0.18);
-    --color-muted: #aeb6c2;
-    display: block;
-    color: #eef1f8;
-  }
+:host { display: block; }
+.min-w-0 { min-width: 0; }
 
-  .messages-page { color: #eef1f8; }
+.chat-page {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 1.25rem;
+  height: calc(100vh - 170px); min-height: 460px;
+}
 
-  .message-bubble--mine {
-    background: var(--color-primary);
-    color: #101720;
-  }
+.conv-list { display: flex; flex-direction: column; overflow-y: auto; }
+.conv-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--lx-border); h3 { margin: 0; font-size: 1.05rem; } }
+.conv {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.9rem 1.1rem; text-align: left;
+  background: transparent; border: 0; border-bottom: 1px solid var(--lx-border); color: inherit; cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: rgba(26, 29, 40, 0.4); }
+  &.is-active { background: rgba(200, 146, 42, 0.1); box-shadow: inset 2px 0 0 var(--lx-primary); }
+}
+.conv-chevron { display: none; }
+.lx-avatar.is-support { background: rgba(96, 165, 250, 0.15); color: var(--lx-blue); }
 
-  .message-bubble--received {
-    background: rgba(255, 255, 255, 0.08);
-    color: #eef1f8;
-  }
+.thread { display: flex; flex-direction: column; min-height: 0; }
+.thread-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--lx-border); }
+.thread-name { font-weight: 500; font-size: 0.95rem; }
+.thread-sub { font-size: 0.72rem; color: var(--lx-muted-fg); }
+.back { display: none; }
 
-  .messages-page .field { color: #eef1f8; }
+.thread-body { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; background: var(--lx-bg); }
+.thread-empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--lx-muted-fg); }
+.bubble-wrap { align-self: flex-start; max-width: 75%;
+  &.mine { align-self: flex-end; .bubble { background: var(--lx-primary); color: var(--lx-primary-fg); border-bottom-right-radius: 4px; } .bubble-time { text-align: right; } } }
+.bubble { background: var(--lx-secondary); padding: 0.6rem 0.85rem; border-radius: 14px; border-bottom-left-radius: 4px;
+  font-size: 0.875rem; line-height: 1.45; overflow-wrap: anywhere; }
+.bubble-time { font-size: 0.68rem; color: var(--lx-muted-fg); margin-top: 0.2rem; }
 
-    .conv-item {
-      display:flex; align-items:center; gap:0.75rem;
-      padding:1rem; cursor:pointer; border-bottom:1px solid var(--color-border);
-      transition:background 0.15s;
-    }
-    .conv-item:hover, .conv-item.active { background:var(--color-bg); }
-    .conv-avatar {
-      width:42px; height:42px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      color:white; font-weight:700; font-size:0.85rem; flex-shrink:0;
-    }
-    .conv-info { flex:1; min-width:0; }
-    .conv-name { font-weight:600; font-size:0.9rem; }
-    .conv-last { font-size:0.78rem; color:var(--color-muted);
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.composer { display: flex; gap: 0.6rem; padding: 0.85rem; border-top: 1px solid var(--lx-border); .lx-input { flex: 1; } }
+
+@media (max-width: 767px) {
+  .chat-page { grid-template-columns: 1fr; height: calc(100vh - 210px); min-height: 400px; }
+  .chat-page:not(.show-thread) .thread { display: none; }
+  .chat-page.show-thread .conv-list { display: none; }
+  .conv-chevron { display: inline-flex; }
+  .back { display: inline-flex; margin-left: -0.5rem; }
+  .bubble-wrap { max-width: 85%; }
+}

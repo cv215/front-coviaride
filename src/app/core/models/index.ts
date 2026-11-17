@@ -10,6 +10,7 @@ export interface InscriptionRequest {
   modeleVoiture?: string
   immatriculation?: string
   numeroCNI?: string;
+  codeParrainage?: string;
 }
 
 export interface LoginRequest {

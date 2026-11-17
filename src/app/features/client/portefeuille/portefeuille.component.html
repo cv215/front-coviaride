@@ -1,247 +1,206 @@
-
-<div>
-  <h2 style="margin-bottom:0.5rem">Mon Portefeuille</h2>
-  <p style="margin-bottom:2rem">Dépôt et retrait via Mobile Money</p>
-
-  <!-- SOLDE -->
-  @if (wallet()) {
-    <div class="card" style="margin-bottom:2rem;background:var(--color-primary);
-      border-color:var(--color-primary);text-align:center;padding:2rem">
-      <div style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:0.5rem">
-        Solde disponible
-      </div>
-      <div style="color:white;font-size:2.5rem;font-weight:900">
-        {{ wallet()!.soldeDisponible | number:'1.0-0' }} XAF
-      </div>
+<div class="lx-page wallet">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Portefeuille</span>
+      <h2>Vos paiements</h2>
+      <p>Rechargez votre solde et retirez vos fonds via Mobile Money.</p>
     </div>
-  }
+  </div>
 
-  <div class="two-col-grid" style="gap:1.5rem">
-
-    <!-- DÉPÔT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem">⬇️ Déposer de l'argent</h3>
-      <p style="font-size:0.85rem;color:var(--color-muted);margin-bottom:1rem">
-        Minimum : <strong>500 XAF</strong> — Aucune commission sur les dépôts
-      </p>
-
-      <!-- CHOIX OPÉRATEUR -->
-      <div class="operator-grid">
-
-        <!-- MTN -->
-        <button type="button"
-          [class]="operateurDepot()==='MTN_MOMO'
-            ? 'op-btn op-btn-selected' : 'op-btn'"
-          (click)="operateurDepot.set('MTN_MOMO')">
-          <div class="op-logo mtn">MTN</div>
-          <span>MoMo</span>
-        </button>
-
-        <!-- ORANGE -->
-        <button type="button"
-          [class]="operateurDepot()==='ORANGE_MONEY'
-            ? 'op-btn op-btn-selected' : 'op-btn'"
-          (click)="operateurDepot.set('ORANGE_MONEY')">
-          <div class="op-logo orange">OM</div>
-          <span>Orange Money</span>
-        </button>
-
+  <!-- Solde -->
+  <section class="balance lx-card lx-card-glow lx-rise">
+    <div class="balance-top">
+      <span class="lx-mono balance-brand">COVIARIDE</span>
+      <span class="lx-icon-tile is-gold"><lx-icon name="wallet" /></span>
+    </div>
+    <div class="lx-muted" style="font-size:.8rem">Solde disponible</div>
+    <div class="balance-amount lx-display">
+      @if (wallet()) { {{ wallet()!.soldeDisponible | number:'1.0-0' }} } @else { — }
+      <span>FCFA</span>
+    </div>
+    @if (wallet()?.soldeBloque) {
+      <div class="lx-muted" style="font-size:.78rem;margin-top:.35rem">
+        dont {{ wallet()!.soldeBloque | number:'1.0-0' }} FCFA bloqués pour vos réservations en cours
       </div>
+    }
+  </section>
 
-      <form [formGroup]="depotForm" (ngSubmit)="deposer()">
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Numéro de téléphone</label>
-          <input type="tel" class="field"
-            formControlName="numeroTelephone"
-            placeholder="ex: 650000000"/>
+  <!-- Choix de l'opération -->
+  <nav class="lx-tabs" role="tablist" style="margin-top:1.5rem">
+    <button role="tab" class="lx-tab" [class.is-active]="mode() === 'depot'" [attr.aria-selected]="mode() === 'depot'" (click)="mode.set('depot')">
+      Recharger
+    </button>
+    <button role="tab" class="lx-tab" [class.is-active]="mode() === 'retrait'" [attr.aria-selected]="mode() === 'retrait'" (click)="mode.set('retrait')">
+      Retirer
+    </button>
+  </nav>
+
+  <div class="ops">
+    @if (mode() === 'depot') {
+      <!-- DÉPÔT -->
+      <form class="lx-card lx-stack" [formGroup]="depotForm" (ngSubmit)="deposer()">
+        <div>
+          <h3 class="lx-card-title" style="margin-bottom:.25rem">Recharger mon solde</h3>
+          <p style="margin:0;font-size:.8rem">Minimum 500 FCFA · aucune commission sur les dépôts.</p>
         </div>
-        <div class="form-group" style="margin-bottom:1.5rem">
-          <label>Montant (XAF)</label>
-          <input type="number" class="field"
-            formControlName="montant"
-            placeholder="Minimum 500 XAF"/>
+
+        <div>
+          <span class="lx-label">Opérateur</span>
+          <div class="operators">
+            <button type="button" class="op" [class.is-active]="operateurDepot() === 'MTN_MOMO'" (click)="operateurDepot.set('MTN_MOMO')">
+              <span class="op-logo mtn">MTN</span><span>MTN MoMo</span>
+            </button>
+            <button type="button" class="op" [class.is-active]="operateurDepot() === 'ORANGE_MONEY'" (click)="operateurDepot.set('ORANGE_MONEY')">
+              <span class="op-logo orange">OM</span><span>Orange Money</span>
+            </button>
+          </div>
         </div>
-        @if (depotError()) {
-          <div class="alert alert-error" style="margin-bottom:1rem">
-            {{ depotError() }}
+
+        <div class="lx-form-grid">
+          <div>
+            <label class="lx-label" for="d-tel">Numéro de téléphone</label>
+            <div class="lx-field has-icon">
+              <span class="lx-field-icon"><lx-icon name="smartphone" /></span>
+              <input id="d-tel" class="lx-input lx-mono" type="tel" inputmode="numeric" formControlName="numeroTelephone" placeholder="650000000" />
+            </div>
+            @if (depotForm.get('numeroTelephone')?.invalid && depotForm.get('numeroTelephone')?.touched) {
+              <div class="lx-error">9 chiffres, commençant par 6 à 9.</div>
+            }
           </div>
-        }
-        @if (depotSuccess()) {
-          <div class="alert alert-success" style="margin-bottom:1rem">
-            {{ depotSuccess() }}
+          <div>
+            <label class="lx-label" for="d-montant">Montant (FCFA)</label>
+            <input id="d-montant" class="lx-input lx-mono" type="number" inputmode="numeric" min="500" formControlName="montant" placeholder="5 000" />
+            @if (depotForm.get('montant')?.invalid && depotForm.get('montant')?.touched) {
+              <div class="lx-error">Minimum 500 FCFA.</div>
+            }
           </div>
-        }
-        <button type="submit" class="btn btn-success btn-full"
-          [disabled]="depotLoading() || depotForm.invalid">
-          {{ depotLoading() ? 'Traitement...' : 'Confirmer le dépôt' }}
+        </div>
+
+        @if (depotError()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ depotError() }}</div> }
+        @if (depotSuccess()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ depotSuccess() }}</div> }
+
+        <button type="submit" class="lx-btn lx-btn-primary lx-btn-block" [disabled]="depotLoading() || depotForm.invalid">
+          {{ depotLoading() ? 'Traitement…' : 'Confirmer le dépôt' }}
         </button>
       </form>
-    </div>
-
-    <!-- RETRAIT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem">⬆️ Retirer de l'argent</h3>
-      <p style="font-size:0.85rem;color:var(--color-muted);margin-bottom:1rem">
-        Minimum : <strong>1 000 XAF</strong> —
-        Commission retrait : <strong>10%</strong>
-      </p>
-
-      <!-- CHOIX OPÉRATEUR -->
-      <div class="operator-grid">
-
-        <button type="button"
-          [class]="operateurRetrait()==='MTN_MOMO'
-            ? 'op-btn op-btn-selected' : 'op-btn'"
-          (click)="operateurRetrait.set('MTN_MOMO')">
-          <div class="op-logo mtn">MTN</div>
-          <span>MoMo</span>
-        </button>
-
-        <button type="button"
-          [class]="operateurRetrait()==='ORANGE_MONEY'
-            ? 'op-btn op-btn-selected' : 'op-btn'"
-          (click)="operateurRetrait.set('ORANGE_MONEY')">
-          <div class="op-logo orange">OM</div>
-          <span>Orange Money</span>
-        </button>
-
-      </div>
-
-      <form [formGroup]="retraitForm" (ngSubmit)="retirer()">
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Numéro de téléphone</label>
-          <input type="tel" class="field"
-            formControlName="numeroTelephone"
-            placeholder="ex: 650000000"/>
+    } @else {
+      <!-- RETRAIT -->
+      <form class="lx-card lx-stack" [formGroup]="retraitForm" (ngSubmit)="retirer()">
+        <div>
+          <h3 class="lx-card-title" style="margin-bottom:.25rem">Retirer des fonds</h3>
+          <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · commission de 10 % · validation par code email.</p>
         </div>
-        <div class="form-group" style="margin-bottom:0.5rem">
-          <label>Montant à retirer (XAF)</label>
-          <input type="number" class="field"
-            formControlName="montant"
-            placeholder="Minimum 1000 XAF"
-            (input)="calculerMontantNet()"/>
+
+        <div>
+          <span class="lx-label">Opérateur</span>
+          <div class="operators">
+            <button type="button" class="op" [class.is-active]="operateurRetrait() === 'MTN_MOMO'" (click)="operateurRetrait.set('MTN_MOMO')">
+              <span class="op-logo mtn">MTN</span><span>MTN MoMo</span>
+            </button>
+            <button type="button" class="op" [class.is-active]="operateurRetrait() === 'ORANGE_MONEY'" (click)="operateurRetrait.set('ORANGE_MONEY')">
+              <span class="op-logo orange">OM</span><span>Orange Money</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="lx-form-grid">
+          <div>
+            <label class="lx-label" for="r-tel">Numéro de téléphone</label>
+            <div class="lx-field has-icon">
+              <span class="lx-field-icon"><lx-icon name="smartphone" /></span>
+              <input id="r-tel" class="lx-input lx-mono" type="tel" inputmode="numeric" formControlName="numeroTelephone" placeholder="650000000" />
+            </div>
+            @if (retraitForm.get('numeroTelephone')?.invalid && retraitForm.get('numeroTelephone')?.touched) {
+              <div class="lx-error">9 chiffres, commençant par 6 à 9.</div>
+            }
+          </div>
+          <div>
+            <label class="lx-label" for="r-montant">Montant (FCFA)</label>
+            <input id="r-montant" class="lx-input lx-mono" type="number" inputmode="numeric" min="1000" formControlName="montant"
+              placeholder="10 000" />
+            @if (retraitForm.get('montant')?.invalid && retraitForm.get('montant')?.touched) {
+              <div class="lx-error">Minimum 1 000 FCFA.</div>
+            }
+          </div>
         </div>
 
         @if (montantNet() > 0) {
-          <div style="background:#FEF3C7;border:1px solid #FDE68A;
-            border-radius:8px;padding:0.75rem;margin-bottom:1rem;
-            font-size:0.85rem">
-            <div style="display:flex;justify-content:space-between">
-              <span>Montant demandé</span>
-              <strong>{{ retraitForm.value.montant | number:'1.0-0' }} XAF</strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;color:#92400E">
-              <span>Commission 10%</span>
-              <strong>- {{ commission() | number:'1.0-0' }} XAF</strong>
-            </div>
-            <hr style="margin:0.5rem 0;border-color:#FDE68A">
-            <div style="display:flex;justify-content:space-between;
-              color:#065F46;font-weight:700">
-              <span>Vous recevez</span>
-              <strong>{{ montantNet() | number:'1.0-0' }} XAF</strong>
-            </div>
+          <div class="summary">
+            <div><span>Montant demandé</span><strong>{{ retraitForm.value.montant | number:'1.0-0' }} FCFA</strong></div>
+            <div class="minus"><span>Commission 10 %</span><strong>− {{ commission() | number:'1.0-0' }} FCFA</strong></div>
+            <div class="net"><span>Vous recevez</span><strong>{{ montantNet() | number:'1.0-0' }} FCFA</strong></div>
           </div>
         }
 
-        <div style="margin:1rem 0; display:flex; gap:0.75rem; flex-wrap:wrap;">
-          <button type="button" class="btn btn-ghost"
-            [disabled]="retraitCodeLoading() || retraitForm.invalid"
-            (click)="demanderCodeValidation()">
-            {{ retraitCodeLoading() ? 'Envoi...' : 'Envoyer le code' }}
+        @if (!retraitCodeRecu()) {
+          <button type="button" class="lx-btn lx-btn-secondary" [disabled]="retraitCodeLoading() || retraitForm.invalid" (click)="demanderCodeValidation()">
+            <lx-icon name="mail" /> {{ retraitCodeLoading() ? 'Envoi…' : 'Recevoir le code de validation' }}
           </button>
-        </div>
-
-        @if (retraitCodeRecu()) {
-          <div [formGroup]="retraitValidationForm" style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1rem;">
-            <div class="form-group">
-              <label>Email</label>
-              <input type="email" class="field" formControlName="email" readonly />
+        } @else {
+          <div [formGroup]="retraitValidationForm" class="lx-form-grid">
+            <div>
+              <label class="lx-label" for="r-email">Email</label>
+              <input id="r-email" class="lx-input" type="email" formControlName="email" readonly />
             </div>
-            <div class="form-group">
-              <label>Code de validation</label>
-              <input type="text" class="field" formControlName="codeValidation" placeholder="Code reçu par email" />
+            <div>
+              <label class="lx-label" for="r-code">Code de validation</label>
+              <input id="r-code" class="lx-input lx-mono" type="text" inputmode="numeric" formControlName="codeValidation" placeholder="Code reçu par email" autocomplete="one-time-code" />
             </div>
           </div>
+          <button type="button" class="lx-link" style="align-self:flex-start" (click)="demanderCodeValidation()" [disabled]="retraitCodeLoading()">
+            Renvoyer le code
+          </button>
         }
 
-        @if (retraitError()) {
-          <div class="alert alert-error" style="margin-bottom:1rem">
-            {{ retraitError() }}
-          </div>
-        }
-        @if (retraitSuccess()) {
-          <div class="alert alert-success" style="margin-bottom:1rem">
-            {{ retraitSuccess() }}
-          </div>
-        }
-        <button type="submit" class="btn btn-primary btn-full"
+        @if (retraitError()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ retraitError() }}</div> }
+        @if (retraitSuccess()) { <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /> {{ retraitSuccess() }}</div> }
+
+        <button type="submit" class="lx-btn lx-btn-primary lx-btn-block"
           [disabled]="retraitLoading() || retraitForm.invalid || retraitValidationForm.invalid || !retraitCodeRecu()">
-          {{ retraitLoading() ? 'Traitement...' : 'Confirmer le retrait sécurisé' }}
+          {{ retraitLoading() ? 'Traitement…' : 'Confirmer le retrait sécurisé' }}
         </button>
       </form>
-    </div>
+    }
 
+    <aside class="lx-card secure">
+      <span class="lx-icon-tile is-gold"><lx-icon name="shield-check" /></span>
+      <h3 class="lx-card-title" style="margin:.9rem 0 .4rem">Paiement protégé</h3>
+      <p style="margin:0;font-size:.85rem;line-height:1.6">Le montant d'une course n'est versé au chauffeur qu'après votre embarquement puis votre arrivée.</p>
+      <div class="secure-list">
+        <span><lx-icon name="check-circle" [size]="14" /> Fonds bloqués jusqu'à l'acceptation</span>
+        <span><lx-icon name="check-circle" [size]="14" /> Retrait validé par code email</span>
+      </div>
+    </aside>
   </div>
 
-  <!-- HISTORIQUE TRANSACTIONS -->
-  <div class="card" style="margin-top:2rem;padding:0;overflow:hidden">
-    <div style="padding:1.25rem;border-bottom:1px solid var(--color-border)">
-      <h3>Historique des transactions</h3>
+  <!-- Historique -->
+  <section style="margin-top:2rem">
+    <div class="lx-section-head">
+      <h3>Historique des opérations</h3>
+      <span class="lx-mono lx-muted" style="font-size:.75rem">{{ transactions().length | number:'2.0-0' }} OPÉRATION(S)</span>
     </div>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Montant</th>
-          <th>Opérateur</th>
-          <th>Statut</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
+    @if (transactions().length === 0) {
+      <div class="lx-empty"><lx-icon name="receipt" /><p>Aucune opération pour le moment.</p></div>
+    } @else {
+      <div class="lx-list">
         @for (t of transactions(); track t.id) {
-          <tr>
-            <td>
-              <span [style.color]="t.type==='DEPOT'
-                ? 'var(--color-success)' : 'var(--color-danger)'">
-                {{ t.type === 'DEPOT' ? '⬇️ Dépôt' : '⬆️ Retrait' }}
+          <div class="lx-list-item" style="cursor:default">
+            <span class="lx-icon-tile" [class.is-in]="t.type === 'DEPOT'" [class.is-out]="t.type !== 'DEPOT'">
+              <lx-icon [name]="t.type === 'DEPOT' ? 'arrow-down-left' : 'arrow-up-right'" [size]="18" />
+            </span>
+            <span class="lx-list-body">
+              <span class="lx-list-title">{{ t.type === 'DEPOT' ? 'Dépôt' : 'Retrait' }} · {{ t.moyenPaiement === 'MTN_MOMO' ? 'MTN MoMo' : 'Orange Money' }}</span>
+              <span class="lx-list-sub">{{ t.timestamp | date:'dd/MM/yyyy HH:mm' }}</span>
+            </span>
+            <span class="tx-right">
+              <span class="tx-amount" [class.in]="t.type === 'DEPOT'">{{ t.type === 'DEPOT' ? '+' : '−' }} {{ t.montant | number:'1.0-0' }} FCFA</span>
+              <span class="lx-badge" [class.lx-badge-success]="t.statut === 'EFFECTUEE'" [class.lx-badge-warning]="t.statut !== 'EFFECTUEE'">
+                {{ statutLabel(t.statut) }}
               </span>
-            </td>
-            <td style="font-weight:700">
-              {{ t.type === 'DEPOT' ? '+' : '-' }}
-              {{ t.montant | number:'1.0-0' }} XAF
-            </td>
-            <td>
-              @if (t.moyenPaiement === 'MTN_MOMO') {
-                <span class="badge" style="background:#FEF9C3;color:#854D0E">
-                  MTN MoMo
-                </span>
-              } @else {
-                <span class="badge" style="background:#FFEDD5;color:#9A3412">
-                  Orange Money
-                </span>
-              }
-            </td>
-            <td>
-              <span class="badge"
-                [class]="t.statut==='EFFECTUEE'
-                  ? 'badge-success' : 'badge-warning'">
-                {{ t.statut }}
-              </span>
-            </td>
-            <td style="font-size:0.85rem;color:var(--color-muted)">
-              {{ t.timestamp | date:'dd/MM/yyyy HH:mm' }}
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="5" style="text-align:center;
-              padding:2rem;color:var(--color-muted)">
-              Aucune transaction
-            </td>
-          </tr>
+            </span>
+          </div>
         }
-      </tbody>
-    </table>
-  </div>
+      </div>
+    }
+  </section>
 </div>

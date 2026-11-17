@@ -1,19 +1,22 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
 import { Portefeuille } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-portefeuille',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, IconComponent],
   templateUrl: './portefeuille.component.html',
   styleUrl: './portefeuille.component.scss'
 })
 export class PortefeuilleClientComponent implements OnInit {
 
+  mode         = signal<'depot' | 'retrait'>('depot');
   wallet       = signal<Portefeuille | null>(null);
   transactions = signal<any[]>([]);
   operateurDepot   = signal<'MTN_MOMO'|'ORANGE_MONEY'>('MTN_MOMO');
@@ -50,15 +53,24 @@ export class PortefeuilleClientComponent implements OnInit {
     private fb: FormBuilder,
     private auth: AuthService,
     private walletSvc: PortefeuilleService
-  ) {}
+  ) {
+    // Recalcul de la commission à chaque saisie (valueChanges est toujours à jour,
+    // contrairement à l'événement (input) qui peut précéder la mise à jour du formulaire).
+    this.retraitForm.get('montant')!.valueChanges.pipe(takeUntilDestroyed())
+      .subscribe(() => this.calculerMontantNet());
+  }
 
   ngOnInit() {
     const u = this.auth.currentUser();
     if (!u) return;
     this.retraitValidationForm.patchValue({ email: u.email });
     this.chargerWallet(u.compteId);
-    this.walletSvc.historique(u.compteId).subscribe({
-      next: p => this.transactions.set(p.content),
+    this.chargerHistorique(u.compteId);
+  }
+
+  chargerHistorique(id: number) {
+    this.walletSvc.historique(id).subscribe({
+      next: p => this.transactions.set(p.content ?? []),
       error: () => {}
     });
   }
@@ -68,6 +80,11 @@ export class PortefeuilleClientComponent implements OnInit {
       next: w => this.wallet.set(w),
       error: () => {}
     });
+  }
+
+  statutLabel(s: string): string {
+    const map: Record<string, string> = { EFFECTUEE: 'Effectuée', EN_ATTENTE: 'En attente', EN_COURS: 'En cours', ECHOUEE: 'Échouée', ANNULEE: 'Annulée', REFUSEE: 'Refusée' };
+    return map[s] ?? (s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ') : '—');
   }
 
   calculerMontantNet() {
@@ -83,6 +100,7 @@ export class PortefeuilleClientComponent implements OnInit {
     if (!u) return;
     this.depotLoading.set(true);
     this.depotError.set('');
+    this.depotSuccess.set('');
     this.walletSvc.depot(u.compteId, {
       moyen: this.operateurDepot(),
       numeroTelephone: this.depotForm.value.numeroTelephone!,
@@ -92,8 +110,10 @@ export class PortefeuilleClientComponent implements OnInit {
         this.depotSuccess.set('Dépôt effectué avec succès !');
         this.depotLoading.set(false);
         this.depotForm.reset();
-        // Réactualiser le solde
+        // Réactualiser le solde et l'historique
         this.chargerWallet(u.compteId);
+        this.chargerHistorique(u.compteId);
+        setTimeout(() => this.depotSuccess.set(''), 5000);
       },
       error: err => {
         this.depotError.set(err.error?.message || 'Erreur lors du dépôt');
@@ -128,6 +148,7 @@ export class PortefeuilleClientComponent implements OnInit {
     if (!u) return;
     this.retraitLoading.set(true);
     this.retraitError.set('');
+    this.retraitSuccess.set('');
     this.walletSvc.retraitAvecCodeValidation(u.compteId, {
       moyen: this.operateurRetrait(),
       numeroTelephone: this.retraitForm.value.numeroTelephone!,
@@ -142,7 +163,9 @@ export class PortefeuilleClientComponent implements OnInit {
         this.retraitValidationForm.reset({ email: u.email });
         this.retraitCodeRecu.set(false);
         this.montantNet.set(0);
+        this.commission.set(0);
         this.chargerWallet(u.compteId);
+        this.chargerHistorique(u.compteId);
       },
       error: err => {
         this.retraitError.set(err.error?.message || 'Code invalide ou retrait refusé');

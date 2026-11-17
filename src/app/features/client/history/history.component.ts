@@ -10,6 +10,7 @@ import { ReservationService } from '../../../core/services/reservation.service';
 import { ToastService, fcfa } from '../../../core/services/toast.service';
 import { Reservation } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 type Filtre = 'a-venir' | 'terminees' | 'annulees' | 'toutes';
 type ActionConfirm = { type: 'annuler' | 'embarquer' | 'arriver'; rez: Reservation } | null;
@@ -25,68 +26,73 @@ const LIBELLES: Record<Reservation['statut'], string> = {
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   template: `
-<div class="page">
-  <header class="head">
+<div class="lx-page">
+  <div class="lx-page-head">
     <div>
-      <h2>Mes courses</h2>
-      <p class="sub">Suivez vos réservations, confirmez votre embarquement et votre arrivée.</p>
+      <span class="lx-eyebrow">Mes trajets</span>
+      <h2>Suivi de mes courses</h2>
+      <p>Suivez vos réservations, confirmez votre embarquement et votre arrivée.</p>
     </div>
-    <div class="head-actions">
-      <button class="btn-ghost" (click)="charger(true)" [disabled]="loading()" aria-label="Actualiser">
-        <span [class.spin]="loading()">⟳</span> Actualiser
+    <div class="lx-row">
+      <button class="lx-btn lx-btn-secondary" (click)="charger(true)" [disabled]="loading()" aria-label="Actualiser">
+        <lx-icon name="refresh" [class.lx-spin]="loading()" /> Actualiser
       </button>
-      <a class="btn-gold" routerLink="/client/nouvelle-course">+ Nouvelle course</a>
+      <a class="lx-btn lx-btn-primary" routerLink="/client/nouvelle-course"><lx-icon name="plus" /> Nouvelle course</a>
     </div>
-  </header>
-
-  <div class="kpis">
-    <div class="kpi"><span class="kpi-v">{{ compteurs()['a-venir'] }}</span><span class="kpi-l">à venir</span></div>
-    <div class="kpi"><span class="kpi-v">{{ compteurs()['terminees'] }}</span><span class="kpi-l">terminées</span></div>
-    <div class="kpi"><span class="kpi-v">{{ totalDepense() }}</span><span class="kpi-l">dépensés</span></div>
   </div>
 
-  <nav class="tabs" role="tablist">
+  <div class="kpis">
+    <div class="lx-stat"><lx-icon name="calendar" style="color:var(--lx-blue)" /><div class="lx-stat-value">{{ compteurs()['a-venir'] }}</div><div class="lx-stat-label">à venir</div></div>
+    <div class="lx-stat"><lx-icon name="check-circle" style="color:var(--lx-emerald)" /><div class="lx-stat-value">{{ compteurs()['terminees'] }}</div><div class="lx-stat-label">terminées</div></div>
+    <div class="lx-stat"><lx-icon name="credit-card" style="color:var(--lx-primary)" /><div class="lx-stat-value">{{ totalDepense() }}</div><div class="lx-stat-label">dépensés</div></div>
+  </div>
+
+  <nav class="lx-tabs" role="tablist">
     @for (f of filtres; track f.id) {
-      <button role="tab" [attr.aria-selected]="filtre() === f.id" [class.active]="filtre() === f.id" (click)="filtre.set(f.id)">
-        {{ f.label }} <span class="count">{{ compteurs()[f.id] }}</span>
+      <button role="tab" class="lx-tab" [attr.aria-selected]="filtre() === f.id" [class.is-active]="filtre() === f.id" (click)="filtre.set(f.id)">
+        {{ f.label }} <span class="lx-tab-count">{{ compteurs()[f.id] }}</span>
       </button>
     }
   </nav>
 
   @if (loading() && reservations().length === 0) {
-    @for (i of [1,2,3]; track i) { <div class="card skeleton"></div> }
+    <div class="lx-stack-sm">@for (i of [1,2,3]; track i) { <div class="lx-skeleton" style="min-height:120px"></div> }</div>
   } @else if (erreur()) {
-    <div class="card empty">
+    <div class="lx-empty">
+      <lx-icon name="alert" />
       <p>{{ erreur() }}</p>
-      <button class="btn-gold" (click)="charger(true)">Réessayer</button>
+      <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="charger(true)">Réessayer</button>
     </div>
   } @else if (visibles().length === 0) {
-    <div class="card empty">
-      <div class="empty-ico">🚗</div>
+    <div class="lx-empty">
+      <lx-icon name="car" />
       <p>{{ filtre() === 'a-venir' ? 'Aucune course à venir.' : 'Aucune course dans cette catégorie.' }}</p>
-      <a class="btn-gold" routerLink="/client/nouvelle-course">Réserver un trajet</a>
+      <a class="lx-btn lx-btn-primary lx-btn-sm" routerLink="/client/nouvelle-course"><lx-icon name="plus" /> Réserver un trajet</a>
     </div>
   } @else {
-    <div class="list">
+    <div class="lx-stack-sm">
       @for (r of visibles(); track r.id) {
-        <article class="card rez" [class.highlight]="r.statut === 'ACCEPTEE'">
+        <article class="lx-card rez" [class.is-highlight]="r.statut === 'ACCEPTEE'">
           <div class="rez-top">
-            <div class="route">
-              <div class="cities">
-                <span>{{ r.villeDepart || 'Départ' }}</span>
-                <span class="arrow">→</span>
-                <span>{{ r.villeArrivee || 'Arrivée' }}</span>
-              </div>
-              <div class="meta">
-                {{ formatDate(r.dateReservation) }} · {{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}
-                @if (r.pointArret) { · arrêt {{ r.pointArret }} }
-                · Réf. CR-{{ r.id }}
+            <div class="rez-left">
+              <span class="lx-icon-tile" [class.is-gold]="r.statut === 'ACCEPTEE'"><lx-icon name="car" /></span>
+              <div class="min-w-0">
+                <div class="cities">
+                  <span>{{ r.villeDepart || 'Départ' }}</span>
+                  <lx-icon name="arrow-right" [size]="16" class="lx-gold" />
+                  <span>{{ r.villeArrivee || 'Arrivée' }}</span>
+                </div>
+                <div class="meta">
+                  {{ formatDate(r.dateReservation) }} · {{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}
+                  @if (r.pointArret) { · arrêt {{ r.pointArret }} }
+                  · Réf. CR-{{ r.id }}
+                </div>
               </div>
             </div>
             <div class="right">
-              <span class="badge" [class]="'badge b-' + r.statut">{{ libelle(r) }}</span>
+              <span class="lx-badge" [ngClass]="badge(r)">{{ libelle(r) }}</span>
               <div class="price">{{ montant(r) }}</div>
             </div>
           </div>
@@ -107,37 +113,44 @@ const LIBELLES: Record<Reservation['statut'], string> = {
             @switch (r.statut) {
               @case ('EN_ATTENTE') {
                 <span class="hint">Le chauffeur n'a pas encore répondu. Aucun montant n'est prélevé tant qu'il n'a pas accepté.</span>
-                <button class="btn-ghost danger" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
+                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
               }
               @case ('ACCEPTEE') {
-                <a class="btn-ghost" [routerLink]="['/client/suivi', r.trajetId]">📍 Suivre</a>
-                <a class="btn-ghost" routerLink="/client/messages" [queryParams]="{ avec: r.chauffeurId }">💬 Message</a>
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="['/client/suivi', r.trajetId]"><lx-icon name="navigation" /> Suivre</a>
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" routerLink="/client/messages" [queryParams]="{ avec: r.chauffeurId }"><lx-icon name="message" /> Message</a>
                 @if (!r.embarquementConfirme) {
-                  <button class="btn-ghost danger" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
-                  <button class="btn-gold" (click)="demander('embarquer', r)" [disabled]="busy() === r.id">Je suis monté</button>
+                  <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('embarquer', r)" [disabled]="busy() === r.id">Je suis monté</button>
                 } @else {
-                  <button class="btn-gold" (click)="demander('arriver', r)" [disabled]="busy() === r.id">Je suis arrivé</button>
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('arriver', r)" [disabled]="busy() === r.id">Je suis arrivé</button>
                 }
               }
               @case ('TERMINEE') {
                 @if (notees().has(r.id)) {
-                  <span class="hint ok">Merci pour votre avis !</span>
+                  <span class="hint ok"><lx-icon name="check-circle" [size]="14" /> Merci pour votre avis !</span>
                 } @else if (notation() === r.id) {
                   <div class="rating">
-                    @for (n of [1,2,3,4,5]; track n) {
-                      <button class="star" [class.on]="n <= note()" (click)="note.set(n)" [attr.aria-label]="n + ' étoiles'">★</button>
-                    }
-                    <input class="input" [(ngModel)]="commentaire" placeholder="Un commentaire (facultatif)" maxlength="500">
-                    <button class="btn-gold" (click)="envoyerAvis(r)" [disabled]="note() === 0 || busy() === r.id">Envoyer</button>
-                    <button class="btn-ghost" (click)="notation.set(null)">Plus tard</button>
+                    <div class="stars-input" role="radiogroup" aria-label="Note">
+                      @for (n of [1,2,3,4,5]; track n) {
+                        <button class="star" [class.on]="n <= note()" (click)="note.set(n)" [attr.aria-label]="n + ' étoiles'">
+                          <lx-icon name="star" [fill]="true" [size]="22" />
+                        </button>
+                      }
+                    </div>
+                    <input class="lx-input" [(ngModel)]="commentaire" placeholder="Un commentaire (facultatif)" maxlength="500">
+                    <div class="lx-row" style="gap:.5rem">
+                      <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="notation.set(null)">Plus tard</button>
+                      <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="envoyerAvis(r)" [disabled]="note() === 0 || busy() === r.id">Envoyer</button>
+                    </div>
                   </div>
                 } @else {
-                  <button class="btn-ghost" (click)="ouvrirNotation(r)">★ Noter le chauffeur</button>
-                  <button class="btn-ghost" (click)="router.navigate(['/client/remboursement'])">Un problème ? Remboursement</button>
+                  <button class="lx-btn lx-btn-secondary lx-btn-sm" (click)="ouvrirNotation(r)"><lx-icon name="star" /> Noter le chauffeur</button>
+                  <a class="lx-btn lx-btn-ghost lx-btn-sm" routerLink="/client/remboursement">Un problème ? Remboursement</a>
                 }
               }
               @default {
-                <a class="btn-ghost" routerLink="/client/nouvelle-course">Réserver à nouveau</a>
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" routerLink="/client/nouvelle-course"
+                  [queryParams]="{ depart: r.villeDepart, arrivee: r.villeArrivee, places: r.nombrePlaces }"><lx-icon name="rotate-ccw" /> Réserver à nouveau</a>
               }
             }
           </div>
@@ -147,105 +160,61 @@ const LIBELLES: Record<Reservation['statut'], string> = {
   }
 
   @if (confirmation(); as c) {
-    <div class="overlay" (click)="confirmation.set(null)">
-      <div class="modal card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="lx-overlay" (click)="confirmation.set(null)">
+      <div class="lx-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
         <h3>{{ titreConfirmation(c) }}</h3>
-        <p>{{ texteConfirmation(c) }}</p>
-        <div class="modal-actions">
-          <button class="btn-ghost" (click)="confirmation.set(null)">Retour</button>
-          <button class="btn-gold" [class.btn-danger]="c.type === 'annuler'" (click)="executer(c)">Confirmer</button>
+        <p style="margin:0;font-size:.9rem;line-height:1.55">{{ texteConfirmation(c) }}</p>
+        <div class="lx-modal-actions">
+          <button class="lx-btn lx-btn-ghost" (click)="confirmation.set(null)">Retour</button>
+          <button class="lx-btn" [class.lx-btn-primary]="c.type !== 'annuler'" [class.lx-btn-danger]="c.type === 'annuler'" (click)="executer(c)">Confirmer</button>
         </div>
       </div>
     </div>
   }
 </div>`,
   styles: [`
-    :host { display:block; color:#eef1f8; --gold:#d7b15a; --muted:#aeb6c2; --card:#14161c; --line:rgba(255,255,255,.08); }
-    .page { max-width: 980px; }
-    .head { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem; }
-    h2 { margin:0; font-size: clamp(1.6rem, 3vw, 2.4rem); color:#fff; }
-    .sub { margin:.2rem 0 0; color:var(--muted); }
-    .head-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
-    .btn-gold, .btn-ghost {
-      display:inline-flex; align-items:center; gap:.4rem; border-radius:999px; padding:.6rem 1.1rem;
-      font-weight:600; font-size:.92rem; cursor:pointer; text-decoration:none; transition: transform .15s, background .15s, opacity .15s;
-    }
-    .btn-gold { background:var(--gold); color:#101720; border:none; }
-    .btn-gold:hover:not(:disabled) { transform: translateY(-1px); background:#e2bf6c; }
-    .btn-ghost { background:rgba(255,255,255,.06); color:#eef1f8; border:1px solid rgba(255,255,255,.12); }
-    .btn-ghost:hover:not(:disabled) { background:rgba(255,255,255,.12); }
-    .btn-ghost.danger { color:#fca5a5; border-color:rgba(239,68,68,.35); }
-    .btn-danger { background:#ef4444 !important; color:#fff !important; }
-    button:disabled { opacity:.5; cursor:not-allowed; }
-    .spin { display:inline-block; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    :host { display: block; }
+    .min-w-0 { min-width: 0; }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 
-    .kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap:.8rem; margin-bottom:1.2rem; }
-    .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:.9rem 1rem; display:flex; flex-direction:column; }
-    .kpi-v { font-size:1.35rem; font-weight:800; color:#fff; }
-    .kpi-l { color:var(--muted); font-size:.85rem; }
+    .rez { padding: 1.15rem 1.25rem; transition: border-color 0.2s;
+      &:hover { border-color: rgba(200, 146, 42, 0.3); }
+      &.is-highlight { border-color: rgba(200, 146, 42, 0.4); } }
+    .rez-top { display: flex; justify-content: space-between; gap: 1rem; }
+    .rez-left { display: flex; gap: 0.9rem; min-width: 0; }
+    .cities { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-weight: 500; font-size: 1rem; }
+    .meta { color: var(--lx-muted-fg); font-size: 0.8rem; margin-top: 0.2rem; }
+    .right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; flex-shrink: 0; }
+    .price { font-family: var(--lx-font-display); font-size: 1.15rem; white-space: nowrap; }
 
-    .tabs { display:flex; gap:.4rem; overflow-x:auto; margin-bottom:1rem; padding-bottom:.2rem; }
-    .tabs button {
-      background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:999px;
-      padding:.45rem .9rem; cursor:pointer; white-space:nowrap; font-weight:600;
-    }
-    .tabs button.active { background:rgba(215,177,90,.14); color:var(--gold); border-color:rgba(215,177,90,.45); }
-    .count { opacity:.75; margin-left:.25rem; font-size:.8rem; }
+    .steps { list-style: none; display: flex; margin: 1.15rem 0 0.25rem; padding: 0; }
+    .steps li { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+      color: var(--lx-muted-fg); font-size: 0.72rem; text-align: center; }
+    .steps li::before { content: ''; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px; background: var(--lx-border-strong); }
+    .steps li:first-child::before { display: none; }
+    .steps li.done::before, .steps li.current::before { background: var(--lx-primary); }
+    .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--lx-secondary); border: 2px solid #2b2f3d; position: relative; z-index: 1; }
+    .steps li.done .dot { background: var(--lx-primary); border-color: var(--lx-primary); }
+    .steps li.current .dot { border-color: var(--lx-primary); box-shadow: 0 0 0 4px rgba(200, 146, 42, 0.2); }
+    .steps li.done, .steps li.current { color: var(--lx-fg); }
+    .motif { color: var(--lx-muted-fg); font-size: 0.85rem; margin: 0.75rem 0 0; }
 
-    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; }
-    .skeleton { height:120px; margin-bottom:.8rem; background:linear-gradient(90deg,#14161c 0%,#1b1f27 50%,#14161c 100%); background-size:200% 100%; animation: shimmer 1.2s infinite; }
-    @keyframes shimmer { to { background-position: -200% 0; } }
-    .empty { text-align:center; padding:3rem 1.5rem; display:flex; flex-direction:column; align-items:center; gap:1rem; }
-    .empty p { color:var(--muted); margin:0; }
-    .empty-ico { font-size:2rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; align-items: center;
+      margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--lx-border); }
+    .hint { color: var(--lx-muted-fg); font-size: 0.8rem; margin-right: auto; flex: 1 1 240px; display: inline-flex; align-items: center; gap: 0.35rem; }
+    .hint.ok { color: var(--lx-emerald); }
+    .rating { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; width: 100%;
+      .lx-input { flex: 1 1 200px; padding: 0.6rem 0.9rem; } }
+    .stars-input { display: flex; }
+    .star { background: none; border: 0; padding: 0 0.1rem; cursor: pointer; color: #3a3d4e; transition: color 0.15s, transform 0.15s;
+      &:hover { transform: scale(1.1); } &.on { color: var(--lx-amber); } }
 
-    .list { display:flex; flex-direction:column; gap:.8rem; }
-    .rez { padding:1.1rem 1.2rem; transition: border-color .2s; }
-    .rez:hover { border-color: rgba(215,177,90,.3); }
-    .rez.highlight { border-color: rgba(215,177,90,.45); }
-    .rez-top { display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-    .cities { font-weight:700; font-size:1.08rem; display:flex; gap:.5rem; flex-wrap:wrap; color:#fff; }
-    .arrow { color:var(--gold); }
-    .meta { color:var(--muted); font-size:.88rem; margin-top:.15rem; }
-    .right { display:flex; flex-direction:column; align-items:flex-end; gap:.35rem; }
-    .price { font-size:1.25rem; font-weight:800; color:#fff; }
-    .badge { font-size:.75rem; font-weight:700; padding:.25rem .65rem; border-radius:999px; }
-    .b-EN_ATTENTE { background:rgba(245,158,11,.15); color:#fcd34d; }
-    .b-ACCEPTEE { background:rgba(59,130,246,.15); color:#93c5fd; }
-    .b-TERMINEE { background:rgba(16,185,129,.15); color:#6ee7b7; }
-    .b-ANNULEE, .b-REFUSEE { background:rgba(239,68,68,.13); color:#fca5a5; }
-
-    .steps { list-style:none; display:flex; margin:1rem 0 .4rem; padding:0; }
-    .steps li { flex:1; position:relative; display:flex; flex-direction:column; align-items:center; gap:.35rem; color:var(--muted); font-size:.78rem; text-align:center; }
-    .steps li::before { content:''; position:absolute; top:6px; left:-50%; width:100%; height:2px; background:var(--line); z-index:0; }
-    .steps li:first-child::before { display:none; }
-    .steps li.done::before, .steps li.current::before { background:var(--gold); }
-    .dot { width:14px; height:14px; border-radius:50%; background:#2a2f39; border:2px solid #2a2f39; z-index:1; }
-    .steps li.done .dot { background:var(--gold); border-color:var(--gold); }
-    .steps li.current .dot { border-color:var(--gold); box-shadow:0 0 0 4px rgba(215,177,90,.2); }
-    .steps li.done, .steps li.current { color:#eef1f8; }
-    .motif { color:var(--muted); font-size:.88rem; margin:.6rem 0 0; }
-
-    .actions { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:flex-end; align-items:center; margin-top:.8rem; }
-    .hint { color:var(--muted); font-size:.85rem; margin-right:auto; }
-    .hint.ok { color:#6ee7b7; }
-    .rating { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; width:100%; justify-content:flex-end; }
-    .star { background:none; border:none; font-size:1.5rem; color:#3a404c; cursor:pointer; padding:0 .1rem; }
-    .star.on { color:var(--gold); }
-    .input { background:#0f1116; border:1px solid var(--line); color:#eef1f8; border-radius:999px; padding:.55rem .9rem; min-width:200px; flex:1; }
-
-    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:grid; place-items:center; z-index:9000; padding:1rem; }
-    .modal { max-width:440px; width:100%; padding:1.4rem; }
-    .modal h3 { margin:0 0 .5rem; color:#fff; }
-    .modal p { color:var(--muted); margin:0 0 1.2rem; }
-    .modal-actions { display:flex; justify-content:flex-end; gap:.6rem; }
-
-    @media (max-width: 600px) {
-      .kpis { grid-template-columns: repeat(3, minmax(0,1fr)); }
-      .kpi-v { font-size:1.05rem; }
-      .right { align-items:flex-start; }
-      .actions { justify-content:flex-start; }
+    @media (max-width: 640px) {
+      .kpis { gap: 0.6rem; }
+      .rez-top { flex-direction: column; }
+      .right { flex-direction: row; align-items: center; justify-content: space-between; }
+      .actions { justify-content: flex-start; }
+      .actions .lx-btn { flex: 1 1 auto; }
     }
   `]
 })
@@ -341,6 +310,15 @@ export class HistoryComponent implements OnInit {
       case 'terminees': return r.statut === 'TERMINEE';
       case 'annulees': return r.statut === 'ANNULEE' || r.statut === 'REFUSEE';
       default: return true;
+    }
+  }
+
+  badge(r: Reservation): string {
+    switch (r.statut) {
+      case 'EN_ATTENTE': return 'lx-badge-warning';
+      case 'ACCEPTEE': return r.embarquementConfirme ? 'lx-badge-gold' : 'lx-badge-info';
+      case 'TERMINEE': return 'lx-badge-success';
+      default: return 'lx-badge-danger';
     }
   }
 

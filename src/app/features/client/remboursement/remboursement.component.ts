@@ -1,4 +1,4 @@
-  import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,11 +9,12 @@ import {
   DemandeRemboursement
 } from '../../../core/services/remboursement.service';
 import { Reservation } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-remboursement',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent],
   templateUrl: './remboursement.component.html',
   styleUrl: './remboursement.component.scss'
 })
@@ -108,19 +109,19 @@ export class RemboursementComponent implements OnInit{
 
   getStatutBadge(s: string) {
     return ({
-      EN_ATTENTE: 'badge badge-warning',
-      EN_COURS:   'badge badge-info',
-      ACCEPTE:    'badge badge-success',
-      REFUSE:     'badge badge-danger'
-    } as Record<string,string>)[s] || 'badge badge-muted';
+      EN_ATTENTE: 'lx-badge-warning',
+      EN_COURS:   'lx-badge-info',
+      ACCEPTE:    'lx-badge-success',
+      REFUSE:     'lx-badge-danger'
+    } as Record<string,string>)[s] || '';
   }
 
   getStatutLabel(s: string) {
     return ({
-      EN_ATTENTE: '⏳ En attente',
-      EN_COURS:   '🔄 En cours',
-      ACCEPTE:    '✅ Acceptée',
-      REFUSE:     '❌ Refusée'
+      EN_ATTENTE: 'En attente',
+      EN_COURS:   'En cours',
+      ACCEPTE:    'Acceptée',
+      REFUSE:     'Refusée'
     } as Record<string,string>)[s] || s;
   }
 
@@ -133,8 +134,8 @@ export class RemboursementComponent implements OnInit{
       EN_ATTENTE: 0, EN_COURS: 1, ACCEPTE: 2, REFUSE: 2
     };
     const n = niveaux[statut] ?? 0;
-    if (etape > n) return '#E5E7EB';
-    if (statut === 'REFUSE' && etape === 2) return '#EF4444';
-    return '#10B981';
+    if (etape > n) return '#2b2f3d';
+    if (statut === 'REFUSE' && etape === 2) return '#e0534a';
+    return '#c8922a';
   }
 }

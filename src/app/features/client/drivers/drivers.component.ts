@@ -1,139 +1,159 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { Utilisateur } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-drivers',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
-<div>
-  <div style="margin-bottom:2rem">
-    <h2>Chauffeurs disponibles</h2>
-    <p>Professionnels vérifiés et évalués</p>
+<div class="lx-page-wide">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Notre flotte</span>
+      <h2>Chauffeurs disponibles</h2>
+      <p>Chaque chauffeur est vérifié et noté par ses passagers.</p>
+    </div>
+    <a routerLink="/client/nouvelle-course" class="lx-btn lx-btn-primary"><lx-icon name="search" /> Chercher un trajet</a>
   </div>
 
   @if (loading()) {
-    <div class="driver-loading-grid">
-      @for (_ of [1,2,3,4,5,6]; track $index) {
-        <div class="driver-card">
-          <div class="driver-photo" style="background:var(--color-bg);animation:pulse 1.5s infinite"></div>
-          <div class="driver-info">
-            <div style="height:1rem;background:var(--color-bg);border-radius:4px;margin-bottom:0.5rem"></div>
-            <div style="height:0.75rem;background:var(--color-bg);border-radius:4px;width:60%"></div>
-          </div>
-        </div>
-      }
+    <div class="grid">
+      @for (_ of [1,2,3]; track $index) { <div class="lx-skeleton" style="min-height:280px"></div> }
     </div>
+  } @else if (erreur()) {
+    <div class="lx-empty"><lx-icon name="alert" /><p>Impossible de charger les chauffeurs.</p>
+      <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="charger()">Réessayer</button></div>
+  } @else if (chauffeurs().length === 0) {
+    <div class="lx-empty"><lx-icon name="users" /><p>Aucun chauffeur disponible pour le moment.</p></div>
   } @else {
-    <div class="driver-list-grid">
+    <div class="grid">
       @for (d of chauffeurs(); track d.id) {
-        <div class="driver-card" (click)="selectedDriver.set(d)">
-          <div class="driver-photo">
+        <article class="driver">
+          <button class="cover" (click)="selectedDriver.set(d)" [attr.aria-label]="'Voir le profil de ' + d.prenom + ' ' + d.nom">
             @if (d.photo) {
-              <img [src]="d.photo" [alt]="d.nom"/>
+              <img [src]="d.photo" [alt]="d.prenom + ' ' + d.nom" loading="lazy" />
             } @else {
-              <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--color-bg)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="width:48px;height:48px;color:var(--color-muted)">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </div>
+              <span class="cover-initials lx-display">{{ initiales(d) }}</span>
             }
-            <span class="avail-badge badge badge-success">Disponible</span>
-          </div>
-          <div class="driver-info">
-            <div class="driver-name">
-              <span>{{ d.prenom }} {{ d.nom }}</span>
-              <span style="display:flex;align-items:center;gap:0.25rem">
-                <span style="color:#F59E0B">★</span>
-                {{ d.noteMoyenne | number:'1.1-1' }}
+            <span class="cover-shade"></span>
+            @if ((d.noteMoyenne || 0) >= 4.8) { <span class="badge-top">Top chauffeur</span> }
+            @if (d.vehicules?.length) {
+              <span class="car-tag">{{ d.vehicules![0].marque }} {{ d.vehicules![0].modele }}</span>
+            }
+          </button>
+          <div class="body">
+            <div class="who">
+              <span class="lx-avatar is-ring">{{ initiales(d) }}</span>
+              <div class="min-w-0">
+                <div class="name lx-truncate">{{ d.prenom }} {{ d.nom }}</div>
+                <div class="rating">
+                  <lx-icon name="star" [fill]="true" [size]="14" />
+                  <span>{{ (d.noteMoyenne || 0) | number:'1.1-1' }}</span>
+                  <span class="lx-muted">({{ d.nombreAvis || 0 }} avis)</span>
+                </div>
+              </div>
+            </div>
+            <div class="foot">
+              <span class="lx-muted" style="font-size:.8rem">
+                @if (d.vehicules?.length) { {{ d.vehicules![0].nombrePlaces }} places · {{ d.vehicules![0].couleur }} } @else { Véhicule non renseigné }
               </span>
-            </div>
-            <div class="driver-vehicle">
-              @if (d.vehicules && d.vehicules.length > 0) {
-                {{ d.vehicules[0].marque }} {{ d.vehicules[0].modele }}
-              } @else { Véhicule non renseigné }
-            </div>
-            <div class="driver-stats">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px">
-                <rect x="1" y="3" width="15" height="13"/>
-                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-                <circle cx="5.5" cy="18.5" r="2.5"/>
-                <circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-              {{ d.nombreAvis }} courses
+              <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="selectedDriver.set(d)">Voir <lx-icon name="arrow-right" /></button>
             </div>
           </div>
-        </div>
+        </article>
       }
     </div>
   }
 
-  <!-- DRIVER DETAIL MODAL -->
-  @if (selectedDriver()) {
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem"
-      (click)="selectedDriver.set(null)">
-      <div class="card" style="max-width:420px;width:100%;max-height:80vh;overflow-y:auto" (click)="$event.stopPropagation()">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
-          <h3>Profil chauffeur</h3>
-          <button class="btn btn-ghost btn-sm" (click)="selectedDriver.set(null)">✕</button>
+  @if (selectedDriver(); as d) {
+    <div class="lx-overlay" (click)="selectedDriver.set(null)">
+      <div class="lx-modal" role="dialog" aria-modal="true" [attr.aria-label]="'Profil de ' + d.prenom" (click)="$event.stopPropagation()">
+        <div class="lx-row" style="justify-content:space-between;margin-bottom:1rem">
+          <span class="lx-eyebrow" style="margin:0">Profil chauffeur</span>
+          <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="selectedDriver.set(null)" aria-label="Fermer"><lx-icon name="x" /></button>
         </div>
-        <div style="text-align:center;margin-bottom:1.5rem">
-          <div style="width:80px;height:80px;border-radius:50%;background:var(--color-bg);margin:0 auto 1rem;display:flex;align-items:center;justify-content:center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;color:var(--color-muted)">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </div>
-          <h3>{{ selectedDriver()?.prenom }} {{ selectedDriver()?.nom }}</h3>
-          <div style="display:flex;align-items:center;justify-content:center;gap:0.25rem;color:#F59E0B;font-size:1.1rem;font-weight:700">
-            ★ {{ selectedDriver()?.noteMoyenne | number:'1.1-1' }}
-            <span style="color:var(--color-muted);font-size:0.85rem;font-weight:400">({{ selectedDriver()?.nombreAvis }} avis)</span>
+        <div style="text-align:center">
+          <span class="lx-avatar is-xl is-ring" style="margin:0 auto .9rem">{{ initiales(d) }}</span>
+          <h3>{{ d.prenom }} {{ d.nom }}</h3>
+          <div class="rating" style="justify-content:center">
+            <lx-icon name="star" [fill]="true" [size]="16" />
+            <span>{{ (d.noteMoyenne || 0) | number:'1.1-1' }}</span>
+            <span class="lx-muted">· {{ d.nombreAvis || 0 }} avis</span>
           </div>
         </div>
-        <div class="operator-grid" style="margin-bottom:1.5rem">
-          <div class="stat-card" style="padding:1rem">
-            <div class="stat-info"><div class="value" style="font-size:1.25rem">{{ selectedDriver()?.nombreAvis }}</div><div class="label">Courses</div></div>
-          </div>
-          <div class="stat-card" style="padding:1rem">
-            <div class="stat-info"><div class="value" style="font-size:1.25rem">{{ selectedDriver()?.noteMoyenne | number:'1.1-1' }}</div><div class="label">Note</div></div>
-          </div>
-        </div>
-        @if (selectedDriver()?.vehicules?.length) {
-          <div style="margin-bottom:1rem">
-            <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-muted);margin-bottom:0.5rem">Véhicule</p>
-            <div class="card" style="padding:0.75rem;background:var(--color-bg)">
-              <strong>{{ selectedDriver()?.vehicules![0].marque }} {{ selectedDriver()?.vehicules![0].modele }}</strong>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ selectedDriver()?.vehicules![0].couleur }} · {{ selectedDriver()?.vehicules![0].nombrePlaces }} places</div>
+        @if (d.vehicules?.length) {
+          <div class="vehicle">
+            <span class="lx-icon-tile is-soft"><lx-icon name="car" /></span>
+            <div>
+              <div style="font-weight:500">{{ d.vehicules![0].marque }} {{ d.vehicules![0].modele }}</div>
+              <div class="lx-muted" style="font-size:.8rem">{{ d.vehicules![0].couleur }} · {{ d.vehicules![0].nombrePlaces }} places</div>
             </div>
           </div>
         }
-        <a routerLink="/client/nouvelle-course" class="btn btn-primary btn-full" (click)="selectedDriver.set(null)">
-          Réserver avec ce chauffeur →
+        <a routerLink="/client/nouvelle-course" class="lx-btn lx-btn-primary lx-btn-block" style="margin-top:1.25rem" (click)="selectedDriver.set(null)">
+          Trouver un trajet <lx-icon name="arrow-right" />
         </a>
       </div>
     </div>
   }
 </div>
-  `
+  `,
+  styles: [`
+    :host { display: block; }
+    .min-w-0 { min-width: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.25rem; }
+    .driver { background: var(--lx-card); border: 1px solid var(--lx-border); border-radius: var(--lx-r-lg); overflow: hidden;
+      transition: border-color 0.3s; &:hover { border-color: rgba(200, 146, 42, 0.3); img { transform: scale(1.05); } } }
+    .cover { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; padding: 0; cursor: pointer;
+      background: linear-gradient(135deg, #1a1d28, #111214); overflow: hidden;
+      img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; } }
+    .cover-initials { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: rgba(200, 146, 42, 0.5); }
+    .cover-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.6), transparent 60%); }
+    .badge-top { position: absolute; top: 0.85rem; left: 0.85rem; background: var(--lx-primary); color: var(--lx-primary-fg);
+      font-size: 0.72rem; font-weight: 500; padding: 0.25rem 0.7rem; border-radius: 999px; }
+    .car-tag { position: absolute; right: 0.85rem; bottom: 0.85rem; background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
+      color: #fff; font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 8px; }
+    .body { padding: 1.1rem 1.25rem 1.25rem; }
+    .who { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .name { font-weight: 500; }
+    .rating { display: flex; align-items: center; gap: 0.35rem; color: var(--lx-amber); font-size: 0.85rem; font-weight: 500; margin-top: 0.1rem;
+      .lx-muted { font-weight: 400; font-size: 0.75rem; } }
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .vehicle { display: flex; align-items: center; gap: 0.8rem; margin-top: 1.25rem; padding: 0.85rem 1rem; background: var(--lx-secondary); border-radius: var(--lx-r-md); }
+  `]
 })
 export class DriversComponent implements OnInit {
   loading = signal(true);
+  erreur = signal(false);
   chauffeurs = signal<Utilisateur[]>([]);
   selectedDriver = signal<Utilisateur | null>(null);
 
   constructor(private userSvc: UtilisateurService) {}
 
   ngOnInit() {
+    this.charger();
+  }
+
+  charger() {
+    this.loading.set(true);
+    this.erreur.set(false);
     this.userSvc.getChauffeursDisponibles(0).subscribe({
       next: (p: any) => {
-        this.chauffeurs.set(p.content || p);
+        this.chauffeurs.set(p?.content ?? (Array.isArray(p) ? p : []));
         this.loading.set(false);
       },
-      error: () => this.loading.set(false)
+      error: () => { this.loading.set(false); this.erreur.set(true); }
     });
   }
+
+  initiales(d: Utilisateur): string {
+    return (((d.prenom || '').charAt(0)) + ((d.nom || '').charAt(0))).toUpperCase() || '?';
+  }
+
+  @HostListener('document:keydown.escape')
+  fermer() { this.selectedDriver.set(null); }
 }

@@ -1,125 +1,102 @@
 import {
-  Component, OnInit, OnDestroy,
-  signal, ElementRef, ViewChild,
-  AfterViewInit
+  Component, OnInit, OnDestroy, signal, ElementRef, ViewChild, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { TrajetService } from '../../../core/services/trajet.service';
 import { interval, Subscription } from 'rxjs';
+import { TrajetService } from '../../../core/services/trajet.service';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 declare const L: any;
 
 @Component({
   selector: 'app-tracking',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
-<div>
-  <a routerLink="/client/dashboard" style="color:var(--color-muted);text-decoration:none;
-    font-size:0.9rem;display:block;margin-bottom:1rem">
-    ← Retour
-  </a>
-  <h2 style="margin-bottom:0.25rem">Suivi en direct</h2>
-  <p style="margin-bottom:1.5rem;color:var(--color-muted)">
+<div class="lx-page-wide">
+  <a routerLink="/client/historique" class="lx-back"><lx-icon name="arrow-left" /> Mes courses</a>
+
+  <div class="head">
+    <div class="lx-row" style="gap:.6rem">
+      <span class="lx-ping is-green"></span>
+      <span class="lx-eyebrow" style="margin:0">En direct</span>
+    </div>
+    <h2 class="lx-display route-title">
+      @if (trajet()) {
+        {{ trajet().villeDepart }} <lx-icon name="arrow-right" class="lx-gold" [size]="20" /> {{ trajet().villeArrivee }}
+      } @else {
+        Trajet #{{ trajetId() }}
+      }
+    </h2>
     @if (trajet()) {
-      {{ trajet().villeDepart }} → {{ trajet().villeArrivee }} · {{ trajet().dateDepart }} · {{ trajet().heureDepart }}
-    } @else {
-      Trajet #{{ trajetId() }}
+      <p class="lx-muted" style="margin:.25rem 0 0;font-size:.85rem">
+        Départ le {{ trajet().dateDepart | date:'EEEE d MMMM' }} à {{ trajet().heureDepart | slice:0:5 }}
+      </p>
     }
-  </p>
+  </div>
 
-  <div class="tracking-layout">
-
-    <!-- CARTE LEAFLET -->
-    <div class="tracking-map-panel">
-      <div #mapContainer id="map" class="tracking-map">
-      </div>
+  <div class="layout">
+    <div class="map-panel">
+      <div #mapContainer class="map"></div>
+      @if (carteIndisponible()) {
+        <div class="map-fallback"><lx-icon name="map-pin" /> Carte indisponible (connexion à OpenStreetMap impossible).</div>
+      }
     </div>
 
-    <!-- PANNEAU DROITE -->
-    <div class="tracking-side-panel">
-
-      <!-- STATUT COURSE -->
-      <div class="card">
-        <div style="display:flex;align-items:center;
-          gap:0.5rem;margin-bottom:1rem">
-          <span class="dot dot-green dot-pulse"></span>
-          <strong>Course en cours</strong>
-        </div>
-        <div style="font-size:0.78rem;color:var(--color-muted);
-          margin-bottom:0.25rem">Arrivée estimée</div>
-        <div style="font-size:2rem;font-weight:800">
-          {{ tempsEstime() }} min
-        </div>
-      </div>
-
-      <!-- POSITION -->
-      @if (position()) {
-        <div class="card">
-          <div style="font-size:0.75rem;font-weight:700;
-            text-transform:uppercase;letter-spacing:0.05em;
-            color:var(--color-muted);margin-bottom:0.75rem">
-            Position GPS
-          </div>
-          <div style="font-size:0.85rem;
-            display:flex;flex-direction:column;gap:0.35rem">
-            <div>
-              <span style="color:var(--color-muted)">Lat : </span>
-              <strong>
-                {{ position()!.latitude | number:'1.4-4' }}
-              </strong>
-            </div>
-            <div>
-              <span style="color:var(--color-muted)">Lng : </span>
-              <strong>
-                {{ position()!.longitude | number:'1.4-4' }}
-              </strong>
-            </div>
-            @if (position()!.vitesse > 0) {
-              <div>
-                <span style="color:var(--color-muted)">
-                  Vitesse :
-                </span>
-                <strong>
-                  {{ position()!.vitesse | number:'1.0-0' }} km/h
-                </strong>
-              </div>
-            }
-          </div>
-        </div>
-      }
-
-      <!-- INFOS MISE À JOUR -->
-      <div class="card" style="background:var(--color-bg)">
-        <div style="font-size:0.75rem;font-weight:700;
-          text-transform:uppercase;letter-spacing:0.05em;
-          color:var(--color-muted);margin-bottom:0.5rem">
-          MISE À JOUR
-        </div>
-        <div style="font-size:0.82rem;
-          color:var(--color-muted);margin-bottom:0.5rem">
-          Actualisation toutes les 5 secondes
-        </div>
-        <div style="display:flex;align-items:center;gap:0.4rem">
-          <span class="dot dot-green dot-pulse"></span>
-          <span style="font-size:0.8rem;
-            color:var(--color-success)">
-            En direct
-          </span>
-        </div>
-        @if (derniereMaj()) {
-          <div style="font-size:0.72rem;
-            color:var(--color-muted);margin-top:0.4rem">
-            {{ derniereMaj() }}
+    <aside class="side">
+      <div class="lx-card">
+        <div class="lx-muted" style="font-size:.75rem;margin-bottom:.25rem">Arrivée estimée du chauffeur</div>
+        <div class="eta"><span class="lx-display">{{ tempsEstime() }}</span> min</div>
+        @if (position()?.vitesse > 0) {
+          <div class="lx-row" style="gap:.4rem;margin-top:.6rem;font-size:.8rem;color:var(--lx-muted-fg)">
+            <lx-icon name="gauge" [size]="14" /> {{ position()!.vitesse | number:'1.0-0' }} km/h
           </div>
         }
       </div>
 
-    </div>
+      <div class="lx-card">
+        <div class="lx-label">Position GPS</div>
+        @if (position()) {
+          <div class="coords lx-mono">
+            <div><span class="lx-muted">Lat</span> {{ position()!.latitude | number:'1.4-4' }}</div>
+            <div><span class="lx-muted">Lng</span> {{ position()!.longitude | number:'1.4-4' }}</div>
+          </div>
+        } @else {
+          <p style="margin:0;font-size:.85rem">En attente de la position du chauffeur…</p>
+        }
+      </div>
+
+      <div class="lx-card">
+        <div class="lx-row" style="gap:.5rem;font-size:.85rem;color:var(--lx-emerald)">
+          <span class="lx-ping is-green" style="width:8px;height:8px"></span> Actualisation toutes les 5 s
+        </div>
+        @if (derniereMaj()) {
+          <div class="lx-muted" style="font-size:.75rem;margin-top:.4rem">Dernière mise à jour : {{ derniereMaj() }}</div>
+        }
+      </div>
+    </aside>
   </div>
 </div>
-  `
+  `,
+  styles: [`
+    :host { display: block; }
+    .head { margin-bottom: 1.5rem; }
+    .route-title { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: clamp(1.5rem, 3vw, 2rem); margin: 0.5rem 0 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1.25rem; align-items: start; }
+    .map-panel { position: relative; border-radius: var(--lx-r-lg); overflow: hidden; border: 1px solid var(--lx-border); background: var(--lx-card); }
+    .map { width: 100%; height: 480px; }
+    .map-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      font-size: 0.85rem; color: var(--lx-muted-fg); background: var(--lx-card); }
+    .side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+    .side .lx-card { padding: 1.15rem 1.25rem; }
+    .eta { font-size: 0.9rem; color: var(--lx-muted-fg); .lx-display { font-size: 2.5rem; color: var(--lx-primary); margin-right: 0.25rem; } }
+    .coords { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; .lx-muted { display: inline-block; width: 2.5rem; } }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .map { height: 340px; }
+    }
+  `]
 })
 export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -130,6 +107,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   trajet      = signal<any>(null);
   tempsEstime = signal(12);
   derniereMaj = signal('');
+  carteIndisponible = signal(false);
 
   // Coordonnées Yaoundé par défaut
   private readonly DEFAULT_LAT = 3.8480;
@@ -137,8 +115,10 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private map: any    = null;
   private marker: any = null;
+  private routeLayer: any = null;
   private pollSub?: Subscription;
   private mapReady   = false;
+  private initTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private route: ActivatedRoute,
@@ -150,134 +130,102 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.trajetId.set(id);
 
     this.trajetSvc.getById(id).subscribe({
-      next: (journey: any) => this.trajet.set(journey),
+      next: (journey: any) => {
+        this.trajet.set(journey);
+        // La carte a pu être créée avant l'arrivée du trajet : on trace l'itinéraire maintenant.
+        if (this.mapReady) this.dessinerItineraire();
+      },
       error: () => this.trajet.set(null)
     });
 
-    // Premier fetch immédiat
     this.fetchPosition(id);
-
-    // Polling toutes les 5 secondes
     this.pollSub = interval(5000).subscribe(() => {
-      this.fetchPosition(id);
+      if (!document.hidden) this.fetchPosition(id);
     });
   }
 
   ngAfterViewInit() {
-    // Attendre que le DOM soit prêt
-    setTimeout(() => this.initMap(), 300);
+    this.initTimer = setTimeout(() => this.initMap(), 50);
   }
 
   ngOnDestroy() {
     this.pollSub?.unsubscribe();
+    clearTimeout(this.initTimer);
     if (this.map) {
       this.map.remove();
       this.map = null;
     }
   }
 
-  // ── Initialiser la carte Leaflet ────────────────────────────
   private initMap() {
-    if (typeof L === 'undefined') {
-      console.error('[MAP] Leaflet non chargé');
+    if (typeof L === 'undefined' || !this.mapContainer?.nativeElement) {
+      this.carteIndisponible.set(true);
       return;
     }
 
-    if (!this.mapContainer?.nativeElement) return;
-
-    // Créer la carte centrée sur Yaoundé
     this.map = L.map(this.mapContainer.nativeElement, {
-      center:  [this.DEFAULT_LAT, this.DEFAULT_LNG],
-      zoom:    14,
+      center: [this.DEFAULT_LAT, this.DEFAULT_LNG],
+      zoom: 14,
       zoomControl: true
     });
 
-    // Tuiles OpenStreetMap (gratuit)
-    L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19
-      }
-    ).addTo(this.map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap · © CARTO',
+      maxZoom: 19
+    }).addTo(this.map);
 
-    if (this.trajet()) {
-      const start = [this.trajet().latDepart ?? this.DEFAULT_LAT, this.trajet().lngDepart ?? this.DEFAULT_LNG];
-      const end = [this.trajet().latArrivee ?? this.DEFAULT_LAT, this.trajet().lngArrivee ?? this.DEFAULT_LNG];
-      const routeLine = L.polyline([start, end], { color: '#0D0D0D', weight: 4, opacity: 0.7, dashArray: '10 8' });
-      routeLine.addTo(this.map);
-      L.marker(start).addTo(this.map).bindPopup('<b>Départ</b>');
-      L.marker(end).addTo(this.map).bindPopup('<b>Destination</b>');
-    }
-
-    // Icône personnalisée chauffeur
     const icone = L.divIcon({
-      html: `
-        <div style="
-          width:42px;height:42px;
-          background:#0D0D0D;
-          border:3px solid white;
-          border-radius:50%;
-          display:flex;align-items:center;
-          justify-content:center;
-          font-size:20px;
-          box-shadow:0 2px 8px rgba(0,0,0,0.4)">
-        </div>
-      `,
+      html: `<div style="width:38px;height:38px;background:#c8922a;border:3px solid #090a0b;border-radius:50%;
+        box-shadow:0 0 0 4px rgba(200,146,42,.35),0 4px 12px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#08090e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2.7-3.6A2 2 0 0 0 13.7 5H8.3a2 2 0 0 0-1.6.8L4 10l-2.5 1.1C.7 11.3 0 12.1 0 13v3c0 .6.4 1 1 1h2"/>
+        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg></div>`,
       className: '',
-      iconSize:   [42, 42],
-      iconAnchor: [21, 21]
+      iconSize: [38, 38],
+      iconAnchor: [19, 19]
     });
 
-    // Placer le marker initial
-    this.marker = L.marker(
-      [this.DEFAULT_LAT, this.DEFAULT_LNG],
-      { icon: icone }
-    ).addTo(this.map);
-
-    this.marker.bindPopup(
-      '<b>Votre chauffeur</b><br>En route...'
-    ).openPopup();
+    this.marker = L.marker([this.DEFAULT_LAT, this.DEFAULT_LNG], { icon: icone }).addTo(this.map);
+    this.marker.bindPopup('<b>Votre chauffeur</b><br>En route…');
 
     this.mapReady = true;
-
-    // Si position déjà récupérée, mettre à jour
-    if (this.position()) {
-      this.updateMarker(this.position());
-    }
+    this.dessinerItineraire();
+    if (this.position()) this.updateMarker(this.position());
+    // Le conteneur peut avoir changé de taille pendant l'animation d'entrée de la page.
+    setTimeout(() => this.map?.invalidateSize(), 300);
   }
 
-  // ── Récupérer la position du chauffeur ──────────────────────
+  private dessinerItineraire() {
+    const t = this.trajet();
+    if (!this.map || !t || t.latDepart == null || t.latArrivee == null) return;
+    this.routeLayer?.remove();
+    const start = [t.latDepart, t.lngDepart];
+    const end = [t.latArrivee, t.lngArrivee];
+    this.routeLayer = L.layerGroup([
+      L.polyline([start, end], { color: '#c8922a', weight: 4, opacity: 0.85, dashArray: '10 8' }),
+      L.circleMarker(start, { radius: 7, color: '#c8922a', fillColor: '#c8922a', fillOpacity: 1 }).bindPopup('<b>Départ</b>'),
+      L.circleMarker(end, { radius: 7, color: '#e0534a', fillColor: '#e0534a', fillOpacity: 1 }).bindPopup('<b>Destination</b>')
+    ]).addTo(this.map);
+    if (!this.position()) this.map.fitBounds([start, end], { padding: [40, 40] });
+  }
+
   private fetchPosition(id: number) {
     this.trajetSvc.getDernierePosition(id).subscribe({
       next: (pos: any) => {
         if (!pos) return;
         this.position.set(pos);
-        this.derniereMaj.set(
-          new Date().toLocaleTimeString('fr', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          })
-        );
-        if (this.mapReady) {
-          this.updateMarker(pos);
-        }
+        this.derniereMaj.set(new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        if (this.mapReady) this.updateMarker(pos);
       },
       error: () => {}
     });
   }
 
-  // ── Mettre à jour le marker sur la carte ────────────────────
   private updateMarker(pos: any) {
     if (!this.marker || !this.map) return;
-    if (!pos.latitude || !pos.longitude) return;
-
+    if (pos.latitude == null || pos.longitude == null) return;
     const latLng = [pos.latitude, pos.longitude];
     this.marker.setLatLng(latLng);
-    this.map.flyTo(latLng, 15, {
-      animate: true,
-      duration: 1.5
-    });
+    this.map.flyTo(latLng, 15, { animate: true, duration: 1.5 });
   }
 }

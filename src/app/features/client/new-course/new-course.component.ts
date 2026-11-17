@@ -3,62 +3,66 @@ import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { RouterLink, Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Trajet } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
+
+/** Date du jour au format AAAA-MM-JJ dans le fuseau local (toISOString est en UTC). */
+function dateLocale(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 @Component({
   selector: 'app-new-course',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule,
-            FormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, IconComponent],
   template: `
-<div class="page">
-  <a routerLink="/client/dashboard" class="back-link">
-    ← Retour
-  </a>
-  <h2 class="title">Nouvelle course</h2>
-  <p class="subtitle">Trouvez un trajet disponible</p>
+<div class="lx-page">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Réservation</span>
+      <h2>Où souhaitez-vous aller ?</h2>
+      <p>Indiquez votre trajet, choisissez votre chauffeur et réservez en un clic.</p>
+    </div>
+  </div>
 
-  <!-- FORMULAIRE RECHERCHE -->
-  <div class="card search-card">
-    <h3 class="card-title">Nouvelle course</h3>
-    <form [formGroup]="searchForm" (ngSubmit)="rechercher()">
-
-      <div class="input-pill">
-        <span class="dot dot-gold"></span>
-        <input type="text" formControlName="villeDepart"
-          placeholder="Ville de départ"/>
-      </div>
-
-      <div class="input-pill">
-        <span class="pin-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-            fill="currentColor" viewBox="0 0 16 16">
-            <path d="M12.166 8.94c-.524 1.062-1.234 2.12-1.96 3.07A32 32 0 0 1 8 14.58a32 32 0 0 1-2.206-2.57c-.726-.95-1.436-2.008-1.96-3.07C3.304 7.867 3 6.862 3 6a5 5 0 0 1 10 0c0 .862-.305 1.867-.834 2.94M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10"/>
-            <path d="M8 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-          </svg>
-        </span>
-        <input type="text" formControlName="villeArrivee"
-          placeholder="Ville de destination"/>
-      </div>
-
-      <div class="pill-row">
-        <div class="input-pill" style="margin-bottom:0">
-          <span style="opacity:.7">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar" viewBox="0 0 16 16">
-             <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
-            </svg>
-          </span>
-          <input type="date" formControlName="date" [min]="today"/>
+  <!-- ── Formulaire de recherche ─────────────────────────── -->
+  <form class="lx-card search lx-rise" [formGroup]="searchForm" (ngSubmit)="rechercher()">
+    <div class="lx-form-grid">
+      <div>
+        <label class="lx-label" for="nc-depart">Départ</label>
+        <div class="lx-field">
+          <span class="lx-dot-start"></span>
+          <input id="nc-depart" class="lx-input" style="padding-left:2rem" type="text" formControlName="villeDepart"
+            placeholder="Ville de départ" autocomplete="off" />
         </div>
-        <div class="input-pill" style="margin-bottom:0">
-          <span style="opacity:.7"></span>
-          <select formControlName="nbPlaces">
+      </div>
+      <div>
+        <label class="lx-label" for="nc-arrivee">Destination</label>
+        <div class="lx-field has-icon">
+          <span class="lx-field-icon" style="color:var(--lx-red)"><lx-icon name="map-pin" /></span>
+          <input id="nc-arrivee" class="lx-input" type="text" formControlName="villeArrivee"
+            placeholder="Où souhaitez-vous aller ?" autocomplete="off" />
+        </div>
+      </div>
+      <div>
+        <label class="lx-label" for="nc-date">Date</label>
+        <div class="lx-field has-icon">
+          <span class="lx-field-icon"><lx-icon name="calendar" /></span>
+          <input id="nc-date" class="lx-input" type="date" formControlName="date" [min]="today" />
+        </div>
+      </div>
+      <div>
+        <label class="lx-label" for="nc-places">Places</label>
+        <div class="lx-field has-icon">
+          <span class="lx-field-icon"><lx-icon name="users" /></span>
+          <select id="nc-places" class="lx-select" formControlName="nbPlaces">
             <option value="1">1 place</option>
             <option value="2">2 places</option>
             <option value="3">3 places</option>
@@ -66,482 +70,281 @@ import { environment } from '../../../../environments/environment';
           </select>
         </div>
       </div>
+    </div>
 
-      <button type="submit" class="btn-gold btn-full" style="margin-top:1rem"
-        [disabled]="loading()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" style="width:16px;height:16px;">
-          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>
-        </svg>
-        {{ loading() ? 'Recherche...' : 'Trouver un chauffeur' }}
-      </button>
-    </form>
-  </div>
+    <button type="submit" class="lx-btn lx-btn-primary lx-btn-block lx-btn-lg" style="margin-top:1.25rem"
+      [disabled]="loading() || searchForm.invalid">
+      @if (loading()) { <lx-icon name="refresh" class="lx-spin" /> Recherche… }
+      @else { <lx-icon name="search" /> Rechercher un chauffeur disponible }
+    </button>
 
-  <!-- RÉSULTATS -->
+    <div class="trust">
+      <span><lx-icon name="check-circle" [size]="14" /> Confirmation par le chauffeur</span>
+      <span><lx-icon name="check-circle" [size]="14" /> Paiement sécurisé</span>
+      <span><lx-icon name="check-circle" [size]="14" /> Annulation gratuite avant acceptation</span>
+    </div>
+  </form>
+
+  @if (erreurRecherche()) {
+    <div class="lx-alert lx-alert-error" style="margin-top:1.5rem"><lx-icon name="alert" /> {{ erreurRecherche() }}</div>
+  }
+
+  <!-- ── Résultats ───────────────────────────────────────── -->
   @if (searched()) {
-    <div>
-      <h3 class="section-title">
-        {{ trajets().length }} trajet(s) trouvé(s)
-      </h3>
+    <section class="results">
+      <div class="lx-section-head">
+        <h3>{{ trajets().length }} trajet{{ trajets().length > 1 ? 's' : '' }} trouvé{{ trajets().length > 1 ? 's' : '' }}</h3>
+        <span class="lx-muted" style="font-size:.8rem">{{ searchForm.value.villeDepart }} → {{ searchForm.value.villeArrivee }}</span>
+      </div>
 
       @if (trajets().length === 0) {
-        <div class="card empty-state">
-          <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+        <div class="lx-empty">
+          <lx-icon name="search" />
           <p>Aucun trajet disponible pour ces critères.</p>
+          <p class="lx-muted" style="font-size:.8rem">Essayez une autre date ou moins de places.</p>
         </div>
       } @else {
-        <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="lx-stack">
           @for (t of trajets(); track t.id) {
-            <div class="card result-card">
-              <!-- LIGNE PRINCIPALE -->
-              <div class="trajet-header">
-                <div>
-                  <div class="trajet-route">
+            <article class="lx-card lx-card-hover trip" [class.is-open]="trajetSelectionne()?.id === t.id">
+              <div class="trip-top">
+                <div class="min-w-0">
+                  <div class="trip-route">
                     <span>{{ t.villeDepart }}</span>
-                    <span style="color:var(--muted)">→</span>
+                    <lx-icon name="arrow-right" [size]="16" class="lx-gold" />
                     <span>{{ t.villeArrivee }}</span>
                   </div>
-                  <div class="trajet-meta">
-                    <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar" viewBox="0 0 16 16">
-                        <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
-                      </svg>
-                      {{ t.dateDepart }}
-                    </span>
-                    <span> 
-                      {{ t.heureDepart }}
-                    </span>
-                    <span> {{ t.placesDisponibles }} place(s)</span>
+                  <div class="trip-meta">
+                    <span class="cap"><lx-icon name="calendar" [size]="14" /> {{ t.dateDepart | date:'EEE d MMM' }}</span>
+                    <span><lx-icon name="clock" [size]="14" /> {{ t.heureDepart | slice:0:5 }}</span>
+                    <span><lx-icon name="users" [size]="14" /> {{ t.placesDisponibles }} place{{ t.placesDisponibles > 1 ? 's' : '' }} libre{{ t.placesDisponibles > 1 ? 's' : '' }}</span>
                   </div>
                 </div>
-                <div style="text-align:right">
-                  <div class="price">
-                    {{ t.prixParPlace | number:'1.0-0' }} XAF
-                  </div>
-                  <div class="price-label">par place</div>
+                <div class="trip-price">
+                  <span class="lx-display">{{ t.prixParPlace | number:'1.0-0' }}</span>
+                  <span class="lx-muted">FCFA / place</span>
                 </div>
               </div>
 
-              <!-- BOUTON VOIR PLUS -->
               @if (trajetSelectionne()?.id !== t.id) {
-                <button class="btn-outline-gold" (click)="voirPlus(t)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
-                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
-                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
-                  </svg>
-                   Voir le chauffeur →
-                </button>
-              }
-
-              <!-- DÉTAIL CHAUFFEUR -->
-              @if (trajetSelectionne()?.id === t.id) {
-                <div class="driver-detail">
-
+                <div class="trip-foot">
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="voirPlus(t)">
+                    Voir le chauffeur <lx-icon name="arrow-right" />
+                  </button>
+                </div>
+              } @else {
+                <!-- Détail chauffeur -->
+                <div class="detail">
                   @if (chargementChauffeur()) {
-                    <div style="text-align:center;padding:1.5rem;color:var(--muted)">
-                      Chargement du profil chauffeur...
-                    </div>
+                    <div class="lx-skeleton" style="min-height:120px"></div>
                   } @else if (chauffeur()) {
-
-                    <div style="display:flex;gap:1.25rem;align-items:flex-start;margin-bottom:1.5rem">
-
-                      <!-- AVATAR -->
-                      <div class="avatar">
-                        {{ chauffeur()!.prenom?.charAt(0) }}{{ chauffeur()!.nom?.charAt(0) }}
-                      </div>
-
-                      <!-- INFOS CHAUFFEUR -->
-                      <div style="flex:1">
-                        <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.35rem">
-                          {{ chauffeur()!.prenom }} {{ chauffeur()!.nom }}
-                        </div>
-
-                        <!-- ÉTOILES -->
-                        <div style="display:flex;align-items:center;gap:0.35rem;margin-bottom:0.5rem">
-                          @for (i of [1,2,3,4,5]; track i) {
-                            <span style="font-size:1.1rem"
-                              [style.opacity]="i <= (chauffeur()!.noteMoyenne || 0) ? '1' : '0.25'">
-                              ⭐
-                            </span>
-                          }
-                          <span style="font-size:0.85rem;color:var(--muted);margin-left:0.25rem">
-                            {{ chauffeur()!.noteMoyenne | number:'1.1-1' }}/5
+                    <div class="driver">
+                      <span class="lx-avatar is-lg is-ring">{{ chauffeur()!.prenom?.charAt(0) }}{{ chauffeur()!.nom?.charAt(0) }}</span>
+                      <div class="min-w-0" style="flex:1">
+                        <div class="driver-name lx-display">{{ chauffeur()!.prenom }} {{ chauffeur()!.nom }}</div>
+                        <div class="lx-row" style="gap:.5rem;margin:.25rem 0 .4rem">
+                          <span class="lx-stars">
+                            @for (i of [1,2,3,4,5]; track i) {
+                              <lx-icon name="star" [fill]="true" [class.on]="i <= (chauffeur()!.noteMoyenne || 0) + 0.5" />
+                            }
                           </span>
+                          <span class="lx-muted" style="font-size:.8rem">{{ (chauffeur()!.noteMoyenne || 0) | number:'1.1-1' }}/5 · {{ chauffeur()!.nombreAvis || 0 }} avis</span>
                         </div>
+                        <span class="lx-badge lx-badge-success"><lx-icon name="shield-check" [size]="12" /> Chauffeur vérifié</span>
+                      </div>
+                    </div>
 
-                        <!-- STATS -->
-                        <div style="display:flex;gap:1.25rem;align-items:center;font-size:0.85rem;color:var(--muted)">
-                          <span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-taxi-front-fill" viewBox="0 0 16 16">
-                             <path d="M6 1a1 1 0 0 0-1 1v1h-.181A2.5 2.5 0 0 0 2.52 4.515l-.792 1.848a.8.8 0 0 1-.38.404c-.5.25-.855.715-.965 1.262L.05 9.708a2.5 2.5 0 0 0-.049.49v.413c0 .814.39 1.543 1 1.997V14.5a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5v-1.338c1.292.048 2.745.088 4 .088s2.708-.04 4-.088V14.5a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5v-1.892c.61-.454 1-1.183 1-1.997v-.413q0-.248-.049-.49l-.335-1.68a1.8 1.8 0 0 0-.964-1.261.8.8 0 0 1-.381-.404l-.792-1.848A2.5 2.5 0 0 0 11.181 3H11V2a1 1 0 0 0-1-1zM4.309 4h7.382a.5.5 0 0 1 .447.276l.956 1.913a.51.51 0 0 1-.497.731c-.91-.073-3.35-.17-4.597-.17s-3.688.097-4.597.17a.51.51 0 0 1-.497-.731l.956-1.913A.5.5 0 0 1 4.309 4M4 10a1 1 0 1 1-2 0 1 1 0 0 1 2 0m10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-9 0a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1"/>
-                            </svg>
-                             {{ chauffeur()!.nombreAvis || 0 }} courses
-                            </span>
-                          <span class="badge badge-verified">● Chauffeur vérifié</span>
-                        </div>
-
-                        <!-- TÉLÉPHONE -->
-                        <div class="phone-box">
-                          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.25rem">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-telephone-inbound" viewBox="0 0 16 16">
-                             <path d="M15.854.146a.5.5 0 0 1 0 .708L11.707 5H14.5a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793L15.146.146a.5.5 0 0 1 .708 0m-12.2 1.182a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
-                            </svg>
-                                Numéro de téléphone
-                          </div> 
-                          @if (aReserve()) {
-                            <div style="font-size:1rem;font-weight:700;color:var(--gold)">
-                              {{ chauffeur()!.telephone }}
-                            </div>
-                            <div style="font-size:0.75rem;color:var(--success);margin-top:0.2rem">
-                              ✓ Visible car vous avez réservé
-                            </div>
-                          } @else {
-                            <div style="display:flex;align-items:center;gap:0.5rem;color:var(--muted)">
-                              <span style="font-size:1rem;letter-spacing:0.15em">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bag-plus-fill" viewBox="0 0 16 16">
-                                  <path fill-rule="evenodd" d="M10.5 3.5a2.5 2.5 0 0 0-5 0V4h5zm1 0V4H15v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4h3.5v-.5a3.5 3.5 0 1 1 7 0M8.5 8a.5.5 0 0 0-1 0v1.5H6a.5.5 0 0 0 0 1h1.5V12a.5.5 0 0 0 1 0v-1.5H10a.5.5 0 0 0 0-1H8.5z"/>
-                                </svg>
-                                 6XX XXX XXX</span>
-                              <span style="font-size:0.75rem">(visible après réservation)</span>
-                            </div>
-                          }
-                        </div>
+                    <div class="phone">
+                      <span class="lx-icon-tile is-soft"><lx-icon name="phone" [size]="18" /></span>
+                      <div>
+                        <div class="lx-muted" style="font-size:.75rem">Numéro du chauffeur</div>
+                        @if (aReserve() && chauffeur()!.telephone) {
+                          <div class="lx-gold" style="font-weight:600">{{ chauffeur()!.telephone }}</div>
+                        } @else {
+                          <div class="lx-muted">Visible après réservation</div>
+                        }
                       </div>
                     </div>
 
                     @if (t.pointsArret) {
-                      <div class="stops-box">
-                        <div class="stops-label">Arrêts facultatifs</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+                      <div class="block">
+                        <div class="lx-label">Arrêts facultatifs</div>
+                        <div class="chips">
+                          <button type="button" class="lx-chip" [class.is-active]="!selectedStop()" (click)="selectedStop.set(null)">
+                            Trajet complet
+                          </button>
                           @for (stop of getStops(t.pointsArret); track stop.nom) {
-                            <button type="button"
-                              [class]="selectedStop() === stop.nom ? 'btn-gold' : 'btn-outline-gold'"
-                              style="padding:0.5rem 0.9rem;font-size:0.82rem"
+                            <button type="button" class="lx-chip" [class.is-active]="selectedStop() === stop.nom"
                               (click)="selectedStop.set(stop.nom)">
-                              {{ stop.nom }} — {{ stop.prix | number:'1.0-0' }} XAF
+                              <lx-icon name="map-pin" /> {{ stop.nom }} — {{ stop.prix | number:'1.0-0' }} FCFA
                             </button>
                           }
                         </div>
-                        @if (selectedStop()) {
-                          <div style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted)">
-                            Arrêt sélectionné : <strong style="color:var(--text)">{{ selectedStop() }}</strong>
-                            @if (getStopPrice(t, selectedStop()) !== null) {
-                              — prix segment : <strong style="color:var(--text)">{{ getStopPrice(t, selectedStop()) ?? 0 | number:'1.0-0' }} XAF</strong>
-                            }
-                          </div>
-                        }
                       </div>
                     }
 
-                    <!-- AVIS ANCIENS CLIENTS -->
-                    @if (avis().length > 0) {
-                      <div style="margin-bottom:1.5rem">
-                        <div class="stops-label">Avis des clients</div>
-                        <div style="display:flex;flex-direction:column;gap:0.5rem">
+                    <div class="block">
+                      <div class="lx-label">Avis des passagers</div>
+                      @if (avis().length > 0) {
+                        <div class="lx-stack-sm">
                           @for (a of avis().slice(0, 3); track a.id) {
-                            <div class="review-item">
-                              <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
-                                <span style="font-size:0.85rem;font-weight:600">Passager anonyme</span>
-                                <span style="font-size:0.8rem;color:var(--gold)">
-                                  @for (i of getEtoiles(a.note); track i) { ⭐ }
+                            <div class="review">
+                              <div class="lx-row" style="justify-content:space-between">
+                                <span style="font-size:.85rem;font-weight:500">Passager</span>
+                                <span class="lx-stars">
+                                  @for (i of [1,2,3,4,5]; track i) {
+                                    <lx-icon name="star" [fill]="true" [class.on]="i <= a.note" />
+                                  }
                                 </span>
                               </div>
                               @if (a.commentaire) {
-                                <div style="font-size:0.82rem;color:var(--muted);font-style:italic">
-                                  "{{ a.commentaire }}"
-                                </div>
+                                <p class="review-text">« {{ a.commentaire }} »</p>
                               }
                             </div>
                           }
                         </div>
-                      </div>
-                    } @else {
-                      <div style="margin-bottom:1.5rem;font-size:0.85rem;color:var(--muted);font-style:italic">
-                        Aucun avis pour ce chauffeur pour l'instant.
-                      </div>
-                    }
-
-                    <!-- CHAT NÉGOCIATION -->
-                    @if (showChat()) {
-                      <div class="chat-box">
-                        <div class="chat-header">
-                          <span>💬 Négocier le prix avec le chauffeur</span>
-                          <button (click)="showChat.set(false)" class="chat-close">✕</button>
-                        </div>
-
-                        <div class="chat-messages">
-                          @for (msg of chatMessages(); track msg.id) {
-                            <div [style.align-self]="msg.moi ? 'flex-end' : 'flex-start'" style="max-width:75%">
-                              <div class="bubble" [class.bubble-mine]="msg.moi" [class.bubble-theirs]="!msg.moi">
-                                {{ msg.contenu }}
-                              </div>
-                              <div class="bubble-time" [style.text-align]="msg.moi ? 'right' : 'left'">
-                                {{ msg.heure }}
-                              </div>
-                            </div>
-                          }
-
-                          @if (offreChauffeur()) {
-                            <div style="align-self:flex-start;max-width:85%">
-                              <div class="offer-box">
-                                <div class="offer-label">🏷️ Offre du chauffeur</div>
-                                <div class="offer-amount">{{ offreChauffeur() | number:'1.0-0' }} XAF</div>
-                                <div class="offer-original">(Prix original : {{ t.prixParPlace | number:'1.0-0' }} XAF)</div>
-                                <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
-                                  <button class="btn-success-dark" (click)="accepterOffre(t)">
-                                    ✓ Accepter et réserver
-                                  </button>
-                                  <button class="btn-outline-gold" style="padding:0.55rem 1rem;font-size:0.82rem"
-                                    (click)="offreChauffeur.set(null)">
-                                    Refuser
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          }
-                        </div>
-
-                        <div class="chat-input-row">
-                          <input type="text" class="chat-input"
-                            [(ngModel)]="messageChat"
-                            placeholder="Ex: Pouvez-vous faire 3 000 XAF ?"
-                            (keyup.enter)="envoyerMessage(t)"/>
-                          <button class="btn-gold" style="padding:0.6rem 1.2rem;font-size:0.85rem"
-                            (click)="envoyerMessage(t)"
-                            [disabled]="!messageChat.trim()">
-                            Envoyer
-                          </button>
-                        </div>
-                      </div>
-                    }
-
-                    <!-- BOUTONS ACTION -->
-                    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
-                      <button class="btn-gold" (click)="reserver(t)" [disabled]="rezLoading()">
-                        @if (rezLoading()) { Réservation... }
-                        @else { 🎫 Réserver — {{ getPrixReservation(t) | number:'1.0-0' }} XAF }
-                      </button>
-
-                      @if (!showChat()) {
-                        <button class="btn-outline-gold" (click)="ouvrirChat(t)">
-                          💬 Négocier le prix
-                        </button>
+                      } @else {
+                        <p class="lx-muted" style="font-size:.85rem;margin:0">Aucun avis pour ce chauffeur pour l'instant.</p>
                       }
-
-                      <button class="btn-ghost-dark" (click)="trajetSelectionne.set(null)">
-                        ← Retour
-                      </button>
                     </div>
 
-                    <!-- MESSAGES RETOUR -->
+                    <!-- Négociation -->
+                    @if (showChat()) {
+                      <div class="chat">
+                        <div class="chat-head">
+                          <span class="lx-row" style="gap:.5rem"><lx-icon name="message" [size]="16" /> Négocier le prix</span>
+                          <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="showChat.set(false)" aria-label="Fermer"><lx-icon name="x" /></button>
+                        </div>
+                        <div class="chat-body">
+                          @for (msg of chatMessages(); track msg.id) {
+                            <div class="bubble-wrap" [class.mine]="msg.moi">
+                              <div class="bubble">{{ msg.contenu }}</div>
+                              <div class="bubble-time">{{ msg.heure }}</div>
+                            </div>
+                          }
+                          @if (offreChauffeur()) {
+                            <div class="offer">
+                              <div class="lx-row" style="gap:.4rem;color:var(--lx-emerald);font-size:.75rem"><lx-icon name="tag" [size]="14" /> Offre du chauffeur</div>
+                              <div class="offer-amount lx-display">{{ offreChauffeur() | number:'1.0-0' }} FCFA</div>
+                              <div class="lx-muted" style="font-size:.75rem">Prix initial : {{ t.prixParPlace | number:'1.0-0' }} FCFA</div>
+                              <div class="lx-row" style="margin-top:.75rem;gap:.5rem">
+                                <button class="lx-btn lx-btn-success lx-btn-sm" (click)="accepterOffre(t)"><lx-icon name="check" /> Accepter et réserver</button>
+                                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="refuserOffre()">Refuser</button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                        <form class="chat-input" (ngSubmit)="envoyerMessage(t)">
+                          <input class="lx-input" name="msg" [(ngModel)]="messageChat" placeholder="Ex : Pouvez-vous faire 3 000 FCFA ?" autocomplete="off" />
+                          <button type="submit" class="lx-btn lx-btn-primary" [disabled]="!messageChat.trim()" aria-label="Envoyer"><lx-icon name="send" /></button>
+                        </form>
+                      </div>
+                    }
+
                     @if (rezSuccess()) {
-                      <div class="alert-success-dark">
-                        ✓ {{ rezSuccess() }}
-                        @if (aReserve() && chauffeur()?.telephone) {
-                          <div style="margin-top:0.5rem;font-weight:700">
-                            📞 Chauffeur : {{ chauffeur()!.telephone }}
-                          </div>
-                        }
+                      <div class="lx-alert lx-alert-success">
+                        <lx-icon name="check-circle" />
+                        <div>
+                          {{ rezSuccess() }}
+                          @if (aReserve() && chauffeur()?.telephone) {
+                            <div style="margin-top:.35rem;font-weight:600">Chauffeur : {{ chauffeur()!.telephone }}</div>
+                          }
+                          <a routerLink="/client/historique" class="lx-link" style="margin-top:.4rem">Suivre ma réservation <lx-icon name="arrow-right" /></a>
+                        </div>
                       </div>
                     }
                     @if (rezError()) {
-                      <div class="alert-error-dark">{{ rezError() }}</div>
+                      <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ rezError() }}</div>
                     }
+
+                    <div class="actions">
+                      @if (!aReserve()) {
+                        <button class="lx-btn lx-btn-primary" (click)="reserver(t)" [disabled]="rezLoading()">
+                          @if (rezLoading()) { <lx-icon name="refresh" class="lx-spin" /> Réservation… }
+                          @else { Réserver — {{ getPrixReservation(t) * nbPlaces() | number:'1.0-0' }} FCFA }
+                        </button>
+                        @if (!showChat()) {
+                          <button class="lx-btn lx-btn-outline" (click)="ouvrirChat(t)"><lx-icon name="message" /> Négocier le prix</button>
+                        }
+                      }
+                      <button class="lx-btn lx-btn-ghost" (click)="trajetSelectionne.set(null)">Fermer</button>
+                    </div>
+                  } @else {
+                    <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> Impossible de charger le profil du chauffeur.</div>
                   }
                 </div>
               }
-            </div>
+            </article>
           }
         </div>
       }
-    </div>
+    </section>
   }
 </div>
   `,
   styles: [`
-    :host {
-      display: block;
-      --bg: #0a0a0c;
-      --surface: #131316;
-      --surface-2: #1b1b1f;
-      --border: #26262b;
-      --gold: #d9a441;
-      --text: #f2f2f0;
-      --muted: #9a9ba6;
-      --success: #34d399;
-      --success-bg: rgba(52,211,153,0.12);
-      --success-border: rgba(52,211,153,0.35);
-      --danger: #f87171;
-      --danger-bg: rgba(248,113,113,0.1);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: var(--text);
+    :host { display: block; }
+    .min-w-0 { min-width: 0; }
+    .search { padding: 1.5rem; box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35); }
+    .trust {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin-top: 1rem;
+      font-size: 0.75rem; color: rgba(240, 236, 227, 0.5);
+      span { display: inline-flex; align-items: center; gap: 0.35rem; }
+      lx-icon { color: var(--lx-emerald); }
     }
+    .results { margin-top: 2rem; }
 
-    .page { background: var(--bg); padding: 2rem 0; min-height: 100%; }
-
-    .back-link {
-      color: var(--muted); text-decoration: none; font-size: 0.9rem;
-      display: block; margin-bottom: 1rem;
+    .trip { padding: 1.25rem 1.5rem; &.is-open { border-color: rgba(200, 146, 42, 0.35); } }
+    .trip-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+    .trip-route { display: flex; align-items: center; gap: 0.6rem; font-weight: 500; font-size: 1.05rem; flex-wrap: wrap; }
+    .trip-meta {
+      display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.45rem; font-size: 0.8rem; color: var(--lx-muted-fg);
+      span { display: inline-flex; align-items: center; gap: 0.35rem; }
+      .cap { text-transform: capitalize; }
     }
-    .back-link:hover { color: var(--gold); }
+    .trip-price { text-align: right; flex-shrink: 0; display: flex; flex-direction: column;
+      .lx-display { font-size: 1.5rem; line-height: 1.1; } .lx-muted { font-size: 0.72rem; } }
+    .trip-foot { display: flex; justify-content: flex-end; margin-top: 1rem; }
 
-    .title {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-weight: 700; font-size: 1.9rem;
-      margin: 0 0 0.25rem 0; color: var(--text);
-    }
-    .subtitle { color: var(--muted); margin-bottom: 2rem; }
-    .card-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 1.1rem; color: var(--text); }
-    .section-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 1rem; color: var(--text); }
+    .detail { border-top: 1px solid var(--lx-border); margin-top: 1.25rem; padding-top: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+    .driver { display: flex; align-items: center; gap: 1rem; }
+    .driver-name { font-size: 1.15rem; font-weight: 600; }
+    .phone { display: flex; align-items: center; gap: 0.85rem; background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.85rem 1rem; font-size: 0.9rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .review { background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.75rem 0.9rem; }
+    .review-text { margin: 0.35rem 0 0; font-size: 0.82rem; font-style: italic; }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.5rem;
-    }
-    .search-card { max-width: 640px; margin-bottom: 2rem; }
-    .empty-state { text-align: center; padding: 3rem; }
+    .chat { border: 1px solid var(--lx-border); border-radius: var(--lx-r-lg); overflow: hidden; }
+    .chat-head { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.6rem 0.6rem 1rem;
+      background: rgba(200, 146, 42, 0.1); color: var(--lx-primary); font-size: 0.875rem; font-weight: 500; }
+    .chat-body { max-height: 260px; min-height: 140px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; background: var(--lx-bg); }
+    .bubble-wrap { align-self: flex-start; max-width: 80%;
+      &.mine { align-self: flex-end; .bubble { background: var(--lx-primary); color: var(--lx-primary-fg); } .bubble-time { text-align: right; } } }
+    .bubble { background: var(--lx-secondary); padding: 0.55rem 0.8rem; border-radius: 12px; font-size: 0.85rem; line-height: 1.45; }
+    .bubble-time { font-size: 0.68rem; color: var(--lx-muted-fg); margin-top: 0.2rem; }
+    .offer { align-self: flex-start; background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: var(--lx-r-md); padding: 0.8rem 1rem; }
+    .offer-amount { font-size: 1.25rem; margin: 0.2rem 0; }
+    .chat-input { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--lx-border); background: var(--lx-card);
+      .lx-input { padding: 0.65rem 0.9rem; } }
 
-    .input-pill {
-      display: flex; align-items: center; gap: 0.65rem;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 999px; padding: 0.75rem 1.1rem; margin-bottom: 0.75rem;
-    }
-    .input-pill input, .input-pill select {
-      background: transparent; border: none; outline: none;
-      color: var(--text); width: 100%; font-size: 0.92rem;
-    }
-    .input-pill input::placeholder { color: var(--muted); }
-    .input-pill select option { background: var(--surface-2); color: var(--text); }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 
-    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .dot-gold { background: var(--gold); }
-    .pin-icon { color: #ef4444; display: flex; }
-
-    .pill-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-
-    .btn-gold {
-      background: var(--gold); color: #0a0a0c; border: none;
-      border-radius: 999px; padding: 0.85rem 1.5rem;
-      font-weight: 700; font-size: 0.95rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-      transition: opacity .15s;
-    }
-    .btn-gold:hover { opacity: 0.88; }
-    .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-full { width: 100%; }
-
-    .btn-outline-gold {
-      background: transparent; border: 1px solid var(--gold); color: var(--gold);
-      border-radius: 999px; padding: 0.6rem 1.15rem; font-size: 0.85rem;
-      font-weight: 600; cursor: pointer; transition: background .15s;
-    }
-    .btn-outline-gold:hover { background: rgba(217,164,65,0.1); }
-
-    .btn-ghost-dark {
-      background: transparent; border: none; color: var(--muted);
-      font-size: 0.85rem; cursor: pointer; padding: 0.6rem 0.9rem;
-    }
-    .btn-ghost-dark:hover { color: var(--text); }
-
-    .btn-success-dark {
-      background: var(--success); color: #06251a; border: none;
-      border-radius: 999px; padding: 0.55rem 1rem; font-weight: 700;
-      font-size: 0.82rem; cursor: pointer;
-    }
-
-    .badge {
-      display: inline-flex; align-items: center; padding: 0.25rem 0.65rem;
-      border-radius: 999px; font-size: 0.75rem; font-weight: 600;
-    }
-    .badge-verified { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-
-    .result-card { margin-bottom: 0; }
-    .trajet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-    .trajet-route { display: flex; align-items: center; gap: 0.75rem; font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .trajet-meta { font-size: 0.85rem; color: var(--muted); display: flex; gap: 1.25rem; flex-wrap: wrap; }
-    .price { font-size: 1.5rem; font-weight: 800; color: var(--text); }
-    .price-label { font-size: 0.78rem; color: var(--muted); }
-
-    .driver-detail { border-top: 1px solid var(--border); padding-top: 1.25rem; margin-top: 1rem; }
-
-    .avatar {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold), #8a6a1f);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; font-weight: 800; color: #0a0a0c; flex-shrink: 0;
-    }
-
-    .phone-box {
-      margin-top: 0.75rem; padding: 0.75rem;
-      background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border);
-    }
-
-    .stops-box {
-      margin: 1rem 0; border: 1px solid var(--border);
-      border-radius: 12px; background: var(--surface-2); padding: 0.9rem;
-    }
-    .stops-label {
-      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.6rem;
-    }
-
-    .review-item {
-      background: var(--surface-2); border-radius: 10px;
-      padding: 0.75rem; border: 1px solid var(--border);
-    }
-
-    .chat-box { border: 1px solid var(--border); border-radius: 14px; margin-bottom: 1.25rem; overflow: hidden; }
-    .chat-header {
-      background: var(--gold); color: #0a0a0c; padding: 0.75rem 1rem;
-      display: flex; justify-content: space-between; align-items: center;
-      font-weight: 700; font-size: 0.9rem;
-    }
-    .chat-close { background: none; border: none; color: #0a0a0c; cursor: pointer; font-size: 1.1rem; }
-    .chat-messages {
-      height: 200px; overflow-y: auto; padding: 1rem;
-      background: var(--bg); display: flex; flex-direction: column; gap: 0.5rem;
-    }
-    .bubble { padding: 0.5rem 0.75rem; border-radius: 12px; font-size: 0.875rem; }
-    .bubble-mine { background: var(--gold); color: #0a0a0c; }
-    .bubble-theirs { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
-    .bubble-time { font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; padding: 0 0.25rem; }
-
-    .offer-box {
-      background: var(--success-bg); border: 1px solid var(--success-border);
-      border-radius: 12px; padding: 0.75rem 1rem;
-    }
-    .offer-label { font-size: 0.78rem; color: var(--success); font-weight: 600; margin-bottom: 0.4rem; }
-    .offer-amount { font-size: 1rem; font-weight: 800; color: var(--text); }
-    .offer-original { font-size: 0.75rem; color: var(--muted); }
-
-    .chat-input-row {
-      padding: 0.75rem; border-top: 1px solid var(--border);
-      display: flex; gap: 0.5rem; background: var(--surface);
-    }
-    .chat-input {
-      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 999px; padding: 0.6rem 1rem; color: var(--text);
-      font-size: 0.875rem; outline: none;
-    }
-
-    .alert-success-dark {
-      margin-top: 1rem; background: var(--success-bg); border: 1px solid var(--success-border);
-      color: var(--success); padding: 0.85rem 1rem; border-radius: 10px; font-size: 0.88rem;
-    }
-    .alert-error-dark {
-      margin-top: 1rem; background: var(--danger-bg); border: 1px solid rgba(248,113,113,0.35);
-      color: var(--danger); padding: 0.85rem 1rem; border-radius: 10px; font-size: 0.88rem;
+    @media (max-width: 640px) {
+      .search { padding: 1.15rem; }
+      .trip { padding: 1.1rem; }
+      .trip-top { flex-direction: column; }
+      .trip-price { text-align: left; flex-direction: row; align-items: baseline; gap: 0.4rem; }
+      .actions .lx-btn { flex: 1 1 100%; }
     }
   `]
 })
 export class NewCourseComponent implements OnInit {
   private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
 
   loading           = signal(false);
   searched          = signal(false);
+  erreurRecherche   = signal('');
   trajets           = signal<Trajet[]>([]);
   trajetSelectionne = signal<Trajet | null>(null);
   chauffeur         = signal<any>(null);
@@ -557,7 +360,7 @@ export class NewCourseComponent implements OnInit {
   messageChat       = '';
   prixNegocié       = signal<number | null>(null);
   selectedStop      = signal<string | null>(null);
-  today             = new Date().toISOString().split('T')[0];
+  today             = dateLocale();
 
   searchForm = this.fb.group({
     villeDepart:  ['', Validators.required],
@@ -575,30 +378,49 @@ export class NewCourseComponent implements OnInit {
     private router: Router
   ) {}
 
-  ngOnInit() {}
+  ngOnInit() {
+    // Pré-remplissage depuis le tableau de bord ou « Réserver à nouveau »
+    const q = this.route.snapshot.queryParamMap;
+    const depart = q.get('depart');
+    const arrivee = q.get('arrivee');
+    const places = Number(q.get('places'));
+    if (depart) this.searchForm.patchValue({ villeDepart: depart });
+    if (arrivee) this.searchForm.patchValue({ villeArrivee: arrivee });
+    if (places >= 1 && places <= 4) this.searchForm.patchValue({ nbPlaces: String(places) });
+    if (depart && arrivee) this.rechercher();
+  }
+
+  nbPlaces(): number {
+    return Math.max(1, +(this.searchForm.value.nbPlaces ?? 1) || 1);
+  }
 
   rechercher() {
-    if (this.searchForm.invalid) return;
+    if (this.searchForm.invalid) { this.searchForm.markAllAsTouched(); return; }
     this.loading.set(true);
     this.searched.set(false);
+    this.erreurRecherche.set('');
+    this.trajetSelectionne.set(null);
     const v = this.searchForm.value;
 
     this.trajetSvc.rechercher(
-      v.villeDepart!, v.villeArrivee!,
+      v.villeDepart!.trim(), v.villeArrivee!.trim(),
       v.date!, +v.nbPlaces!
     ).subscribe({
       next: p => {
-        const triés = [...p.content].sort((a, b) => {
+        const tries = [...(p.content ?? [])].sort((a, b) => {
           if (a.placesDisponibles !== b.placesDisponibles) {
             return a.placesDisponibles - b.placesDisponibles;
           }
-          return a.heureDepart.localeCompare(b.heureDepart);
+          return (a.heureDepart ?? '').localeCompare(b.heureDepart ?? '');
         });
-        this.trajets.set(triés);
+        this.trajets.set(tries);
         this.searched.set(true);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false)
+      error: err => {
+        this.loading.set(false);
+        this.erreurRecherche.set(messageErreur(err, 'La recherche a échoué. Réessayez.'));
+      }
     });
   }
 
@@ -611,6 +433,9 @@ export class NewCourseComponent implements OnInit {
     this.showChat.set(false);
     this.chatMessages.set([]);
     this.offreChauffeur.set(null);
+    this.prixNegocié.set(null);
+    this.chauffeur.set(null);
+    this.avis.set([]);
     this.chargerChauffeur(t.chauffeurId);
   }
 
@@ -637,22 +462,20 @@ export class NewCourseComponent implements OnInit {
     });
   }
 
+  private heure(): string {
+    return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
   ouvrirChat(t: Trajet) {
     this.showChat.set(true);
-    // Message d'accueil automatique
     if (this.chatMessages().length === 0) {
       this.chatMessages.set([{
         id: 1,
-        contenu: `Bonjour ! Je suis intéressé par votre trajet `
-          + `${t.villeDepart} → ${t.villeArrivee}. `
-          + `Pouvez-vous faire une réduction sur les `
-          + `${t.prixParPlace} XAF ?`,
+        contenu: `Bonjour ! Je suis intéressé par votre trajet ${t.villeDepart} → ${t.villeArrivee}. `
+          + `Pouvez-vous faire une réduction sur les ${t.prixParPlace} FCFA ?`,
         moi: true,
-        heure: new Date().toLocaleTimeString('fr', {
-          hour:'2-digit', minute:'2-digit'
-        })
+        heure: this.heure()
       }]);
-      // Simuler réponse chauffeur après 2s
       setTimeout(() => this.simulerReponseChauffeur(t), 2000);
     }
   }
@@ -660,15 +483,7 @@ export class NewCourseComponent implements OnInit {
   envoyerMessage(t: Trajet) {
     if (!this.messageChat.trim()) return;
     const contenu = this.messageChat.trim();
-    const msg = {
-      id: Date.now(),
-      contenu,
-      moi: true,
-      heure: new Date().toLocaleTimeString('fr', {
-        hour:'2-digit', minute:'2-digit'
-      })
-    };
-    this.chatMessages.update(arr => [...arr, msg]);
+    this.chatMessages.update(arr => [...arr, { id: Date.now(), contenu, moi: true, heure: this.heure() }]);
     this.messageChat = '';
 
     const u = this.auth.currentUser();
@@ -679,91 +494,65 @@ export class NewCourseComponent implements OnInit {
         contenu,
         trajetId:       t.id
       }).subscribe({
-        next: () => {
-          setTimeout(() => this.simulerReponseChauffeur(t), 1200);
-        },
-        error: () => {
-          setTimeout(() => this.simulerReponseChauffeur(t), 1200);
-        }
+        next: () => setTimeout(() => this.simulerReponseChauffeur(t), 1200),
+        error: () => setTimeout(() => this.simulerReponseChauffeur(t), 1200)
       });
       return;
     }
-
     setTimeout(() => this.simulerReponseChauffeur(t), 1200);
   }
 
   private simulerReponseChauffeur(t: Trajet) {
-    // Calcul réduction aléatoire 5-15%
+    // Le panneau a pu être fermé ou un autre trajet ouvert entre-temps.
+    if (!this.showChat() || this.trajetSelectionne()?.id !== t.id) return;
     const reduction = Math.floor(Math.random() * 10) + 5;
-    const prixReduit = Math.round(
-      t.prixParPlace * (1 - reduction / 100));
-
-    const reponseChauffeur = {
+    const prixReduit = Math.round(t.prixParPlace * (1 - reduction / 100));
+    this.chatMessages.update(arr => [...arr, {
       id: Date.now() + 1,
-      contenu: `Bonjour ! Je peux vous proposer `
-        + `${prixReduit} XAF par place, `
-        + `soit ${reduction}% de réduction. `
-        + `C'est mon meilleur prix !`,
+      contenu: `Bonjour ! Je peux vous proposer ${prixReduit} FCFA par place, soit ${reduction}% de réduction. C'est mon meilleur prix !`,
       moi: false,
-      heure: new Date().toLocaleTimeString('fr', {
-        hour:'2-digit', minute:'2-digit'
-      })
-    };
-
-    this.chatMessages.update(arr => [...arr, reponseChauffeur]);
+      heure: this.heure()
+    }]);
     this.offreChauffeur.set(prixReduit);
-    this.prixNegocié.set(prixReduit);
   }
 
   accepterOffre(t: Trajet) {
     const prix = this.offreChauffeur();
     if (!prix) return;
-    // Mettre à jour le prix affiché
     this.offreChauffeur.set(null);
+    this.prixNegocié.set(prix);
     this.showChat.set(false);
-    this.chatMessages.update(arr => [...arr, {
-      id: Date.now(),
-      contenu: `✓ J'accepte votre offre à ${prix} XAF !`,
-      moi: true,
-      heure: new Date().toLocaleTimeString('fr', {
-        hour:'2-digit', minute:'2-digit'
-      })
-    }]);
-    // Réserver avec le prix négocié
+    this.chatMessages.update(arr => [...arr, { id: Date.now(), contenu: `J'accepte votre offre à ${prix} FCFA !`, moi: true, heure: this.heure() }]);
     this.reserver(t, prix);
+  }
+
+  refuserOffre() {
+    this.offreChauffeur.set(null);
+    this.prixNegocié.set(null);
   }
 
   reserver(t: Trajet, prixOverride?: number) {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u || this.rezLoading()) return;
     this.rezLoading.set(true);
     this.rezError.set('');
 
     const pointArret = this.selectedStop();
-    const prixSegment = this.getStopPrice(t, pointArret ?? undefined);
-    const prix = prixOverride ?? prixSegment ?? t.prixParPlace;
+    const prix = prixOverride ?? this.getPrixReservation(t);
+    const places = this.nbPlaces();
 
-    this.rezSvc.reserver(
-      u.compteId,
-      t.id,
-      t.chauffeurId,
-      +this.searchForm.value.nbPlaces!,
-      pointArret ?? undefined,
-      prix
-    ).subscribe({
+    this.rezSvc.reserver(u.compteId, t.id, t.chauffeurId, places, pointArret ?? undefined, prix).subscribe({
       next: (rez) => {
         this.aReserve.set(true);
-        const montant = rez?.montantTotal ?? prix * (+this.searchForm.value.nbPlaces! || 1);
+        const montant = rez?.montantTotal ?? prix * places;
         this.rezSuccess.set(
-          `Demande envoyée ! Montant : ${fcfa(montant)}. `
-          + `Le chauffeur doit maintenant accepter votre place — suivez-la dans « Mes courses ».`
+          `Demande envoyée ! Montant : ${fcfa(montant)}. Le chauffeur doit maintenant accepter votre place.`
         );
         this.toast.success('Réservation envoyée', `${t.villeDepart} → ${t.villeArrivee} · ${fcfa(montant)}`);
         this.rezLoading.set(false);
       },
       error: err => {
-        const msg = messageErreur(err, 'Erreur lors de la réservation');
-        this.rezError.set(msg);
+        this.rezError.set(messageErreur(err, 'Erreur lors de la réservation'));
         if (err.status === 402) {
           this.toast.warning('Solde insuffisant', 'Rechargez votre portefeuille pour réserver ce trajet.');
         }
@@ -785,18 +574,13 @@ export class NewCourseComponent implements OnInit {
   }
 
   getStopPrice(t: Trajet, stopName?: string | null): number | null {
-    const stops = this.getStops(t.pointsArret);
     if (!stopName) return null;
-    const stop = stops.find(s => s.nom.toLowerCase() === stopName.toLowerCase());
+    const stop = this.getStops(t.pointsArret).find(s => s.nom.toLowerCase() === stopName.toLowerCase());
     return stop ? stop.prix : null;
   }
 
+  /** Prix par place : segment choisi, sinon prix négocié accepté, sinon prix du trajet. */
   getPrixReservation(t: Trajet): number {
-    const stop = this.selectedStop();
-    return this.getStopPrice(t, stop) ?? this.offreChauffeur() ?? t.prixParPlace;
-  }
-
-  getEtoiles(note: number): number[] {
-    return Array.from({ length: Math.round(note || 0) });
+    return this.getStopPrice(t, this.selectedStop()) ?? this.prixNegocié() ?? t.prixParPlace;
   }
 }

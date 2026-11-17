@@ -1,16 +1,12 @@
-    .operateur-btn {
-      display:flex; flex-direction:column; align-items:center; gap:0.5rem;
-      padding:0.875rem; border:2px solid var(--color-border);
-      border-radius:var(--radius-md); background:var(--color-surface);
-      cursor:pointer; font-size:0.85rem; font-weight:500;
-      transition:all 0.15s;
-      &.selected { border-color:var(--color-primary); background:var(--color-bg); }
-      &:hover:not(.selected) { border-color:var(--color-muted); }
-    }
-    .op-logo {
-      width:40px; height:40px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      font-weight:900; font-size:0.75rem; color:white;
-      &.mtn { background:#FFC300; color:#000; }
-      &.orange { background:#FF6B00; }
-    }
+:host { display: block; }
+
+.tx-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.lx-icon-tile.is-in { background: rgba(52, 211, 153, 0.12); color: var(--lx-emerald); }
+.lx-icon-tile.is-out { background: rgba(224, 83, 74, 0.12); color: var(--lx-red); }
+.tx-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
+.tx-amount { font-family: var(--lx-font-mono); font-size: 0.85rem; white-space: nowrap; &.in { color: var(--lx-emerald); } }
+
+@media (max-width: 640px) {
+  .tx-stats { grid-template-columns: 1fr; }
+}

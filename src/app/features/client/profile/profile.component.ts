@@ -1,4 +1,4 @@
- import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {ReactiveFormsModule,FormBuilder,Validators,AbstractControl} from '@angular/forms';
 import { FormsModule } from '@angular/forms';
@@ -6,12 +6,13 @@ import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
-import { Portefeuille, ProfilUtilisateur, Reservation, Trajet, Utilisateur } from '../../../core/models';
+import { ProfilUtilisateur } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [FormsModule,CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterLink, IconComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
 })
@@ -46,28 +47,6 @@ export class ProfileComponent implements OnInit{
   creationMsg     = signal('');
   creationErreur  = signal('');
 
-   reservations = signal<Reservation[]>([]);
-    portefeuille = signal<Portefeuille | null>(null);
-    utilisateur = signal<Utilisateur | null>(null);
-    searched          = signal(false);
-    trajets           = signal<Trajet[]>([]);
-    trajetSelectionne = signal<Trajet | null>(null);
-    chauffeur         = signal<any>(null);
-    chargementChauffeur = signal(false);
-    avis              = signal<any[]>([]);
-    aReserve          = signal(false);
-    rezLoading        = signal(false);
-    rezSuccess        = signal('');
-    rezError          = signal('');
-    showChat          = signal(false);
-    chatMessages      = signal<any[]>([]);
-    offreChauffeur    = signal<number | null>(null);
-    messageChat       = '';
-    prixNegocié       = signal<number | null>(null);
-    selectedStop      = signal<string | null>(null);
-    today             = new Date().toISOString().split('T')[0];
-  
-
   maxDate = (() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 18);
@@ -75,9 +54,9 @@ export class ProfileComponent implements OnInit{
   })();
 
   readonly onglets = [
-    { id: 'infos',    label: ' Informations' },
-    { id: 'password', label: ' Mot de passe' },
-    { id: 'urgence',  label: ' Contacts urgence' }
+    { id: 'infos',    label: 'Informations' },
+    { id: 'password', label: 'Mot de passe' },
+    { id: 'urgence',  label: "Contacts d'urgence" }
   ] as const;
 
   // ── Formulaires ───────────────────────────────────────────────────────────
@@ -116,12 +95,13 @@ export class ProfileComponent implements OnInit{
   ngOnInit() {
     const u = this.auth.currentUser();
     if (!u) { this.erreur.set('Non connecté.'); this.chargement.set(false); return; }
-    this.referralCode.set(u.codeParrainage || 'COVI-2026');
+    this.referralCode.set(u.codeParrainage || '');
     this.chargerProfil(u.compteId);
   }
 
   shareReferral() {
     const code = this.referralCode();
+    if (!code) return;
     const message = encodeURIComponent(`Je te recommande Coviaride. Utilise mon code de parrainage : ${code} pour t’inscrire.`);
     window.open(`https://wa.me/?text=${message}`, '_blank');
   }
@@ -173,33 +153,6 @@ export class ProfileComponent implements OnInit{
         this.chargement.set(false);
       }
     });
-  }
-
-  statsClient() {
-    const toutes = this.reservations();
-    const terminees = toutes.filter(r => r.statut === 'TERMINEE');
-
-    const nombreCourses = terminees.length;
-
-    // ⚠️ Le modèle Reservation fourni n'exposait pas la distance ni le prix
-    // du trajet : on suppose ici un objet `trajet` imbriqué avec
-    // `distanceKm` et `prix`. Adaptez ces accès selon votre API réelle.
-    const kmParcourus = terminees.reduce(
-      (total, r: any) => total + (r.trajet?.distanceKm ?? 0), 0
-    );
-
-    // Solde disponible du passager, tel que renvoyé par le portefeuille.
-    const solde = this.portefeuille()?.soldeDisponible ?? 0;
-    const devise = this.portefeuille()?.devise ?? 'XAF';
-
-    // ⚠️ Nombre de personnes parrainées : suppose que UtilisateurService
-    // renvoie ce champ sur le profil. À défaut, câblez un appel dédié
-    // (ex: ParrainageService.compter(user.compteId)).
-    const nombreParraines = (this.utilisateur() as any)?.nombreParraines ?? 0;
-
-    const pointsFidelite = (this.portefeuille() as any)?.pointsFidelite ?? 0;
-
-    return { nombreCourses, kmParcourus, solde, devise, nombreParraines, pointsFidelite };
   }
 
   // ── Créer profil (fallback si Kafka n'a pas créé le profil) ───────────────
@@ -346,6 +299,20 @@ export class ProfileComponent implements OnInit{
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  initiales(): string {
+    const p = this.profil();
+    return (((p?.prenom ?? '').charAt(0)) + ((p?.nom ?? '').charAt(0))).toUpperCase() || 'U';
+  }
+
+  recharger() {
+    const u = this.auth.currentUser();
+    if (u) this.chargerProfil(u.compteId);
+  }
+
+  scrollTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   fi(f: string) { return this.formInfos.get(f); }
   fp(f: string) { return this.formPwd.get(f);   }
 

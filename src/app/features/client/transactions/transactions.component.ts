@@ -1,119 +1,83 @@
-import { Component, OnInit, signal  } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
 import { Portefeuille } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
+type Filtre = 'tous' | 'DEPOT' | 'RETRAIT';
+
+/**
+ * Relevé des opérations du portefeuille.
+ * Les dépôts et retraits se font depuis le Portefeuille, où le retrait
+ * exige le code de validation envoyé par email.
+ */
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, RouterLink, IconComponent],
   templateUrl: './transactions.component.html',
   styleUrl: './transactions.component.scss'
 })
-export class TransactionsComponent implements OnInit{
-
+export class TransactionsComponent implements OnInit {
   wallet = signal<Portefeuille | null>(null);
-  montantRetrait = signal(0);
-  fraisRetrait   = signal(0);
-  netRetrait     = signal(0);
-  operation = signal<'depot' | 'retrait'>('depot');
+  transactions = signal<any[]>([]);
+  loading = signal(true);
+  erreur = signal('');
+  filtre = signal<Filtre>('tous');
 
-  depotLoading  = signal(false);
-  depotError    = signal('');
-  depotSuccess  = signal('');
-  retraitLoading = signal(false);
-  retraitError  = signal('');
-  retraitSuccess = signal('');
+  readonly filtres: { id: Filtre; label: string }[] = [
+    { id: 'tous', label: 'Toutes' },
+    { id: 'DEPOT', label: 'Dépôts' },
+    { id: 'RETRAIT', label: 'Retraits' },
+  ];
 
-  depotForm = this.fb.group({
-    moyen:           ['MTN_MOMO', Validators.required],
-    numeroTelephone: ['', [Validators.required,
-      Validators.pattern(/^[6-9][0-9]{8}$/)]],
-    montant:         [null as number|null,
-      [Validators.required, Validators.min(500)]]  // minimum 500 XAF
+  visibles = computed(() => {
+    const f = this.filtre();
+    return f === 'tous' ? this.transactions() : this.transactions().filter(t => t.type === f);
   });
 
-  retraitForm = this.fb.group({
-    moyen:           ['MTN_MOMO', Validators.required],
-    numeroTelephone: ['', [Validators.required,
-      Validators.pattern(/^[6-9][0-9]{8}$/)]],
-    montant:         [null as number|null,
-      [Validators.required, Validators.min(1000)]]  // minimum 1000 XAF
+  totaux = computed(() => {
+    let entrees = 0, sorties = 0;
+    for (const t of this.transactions()) {
+      if (t.statut && t.statut !== 'EFFECTUEE') continue;
+      if (t.type === 'DEPOT') entrees += Number(t.montant ?? 0);
+      else sorties += Number(t.montant ?? 0);
+    }
+    return { entrees, sorties };
   });
 
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private walletSvc: PortefeuilleService
-  ) {}
+  constructor(private auth: AuthService, private walletSvc: PortefeuilleService) {}
 
   ngOnInit() {
+    this.charger();
+  }
+
+  charger() {
     const u = this.auth.currentUser();
-    if (u) this.walletSvc.get(u.compteId).subscribe({
-      next: w => this.wallet.set(w), error: () => {}
-    });
-  }
-
-  setOperation(mode: 'depot' | 'retrait') {
-    this.operation.set(mode);
-    this.depotError.set('');
-    this.retraitError.set('');
-    this.depotSuccess.set('');
-    this.retraitSuccess.set('');
-  }
-
-  calculerFrais() {
-    const m = this.retraitForm.get('montant')?.value || 0;
-    this.montantRetrait.set(m);
-    const frais = Math.round(m * 0.10);  // 10% de frais
-    this.fraisRetrait.set(frais);
-    this.netRetrait.set(m - frais);
-  }
-
-  deposer() {
-    const u = this.auth.currentUser();
-    if (!u || this.depotForm.invalid) return;
-    this.depotLoading.set(true);
-    this.depotError.set('');
-    this.walletSvc.depot(u.compteId, this.depotForm.value as any).subscribe({
-      next: () => {
-        this.depotSuccess.set('Dépôt effectué avec succès ! solde mise à jour');
-        this.depotLoading.set(false);
-        // Réactualiser le solde
-        this.walletSvc.get(u.compteId).subscribe({
-          next: w => this.wallet.set(w)
-        });
-        this.depotForm.reset({ moyen: 'MTN_MOMO' });
+    if (!u) { this.loading.set(false); return; }
+    this.loading.set(true);
+    this.erreur.set('');
+    this.walletSvc.get(u.compteId).subscribe({ next: w => this.wallet.set(w), error: () => {} });
+    this.walletSvc.historique(u.compteId).subscribe({
+      next: p => {
+        this.transactions.set(p.content ?? []);
+        this.loading.set(false);
       },
-      error: err => {
-        this.depotError.set(err.error?.message || 'Erreur lors du dépôt');
-        this.depotLoading.set(false);
+      error: () => {
+        this.erreur.set('Impossible de charger vos opérations pour le moment.');
+        this.loading.set(false);
       }
     });
   }
 
-  retirer() {
-    const u = this.auth.currentUser();
-    if (!u || this.retraitForm.invalid) return;
-    this.retraitLoading.set(true);
-    this.retraitError.set('');
-    this.walletSvc.retrait(u.compteId, this.retraitForm.value as any).subscribe({
-      next: () => {
-        this.retraitSuccess.set('Retrait effectué ! ' +
-          this.netRetrait() + ' XAF envoyés sur votre compte Mobile Money.');
-        this.retraitLoading.set(false);
-        // Réactualiser le solde
-        this.walletSvc.get(u.compteId).subscribe({
-          next: w => this.wallet.set(w)
-        });
-        this.retraitForm.reset({ moyen: 'MTN_MOMO' });
-      },
-      error: err => {
-        this.retraitError.set(err.error?.message || 'Erreur lors du retrait');
-        this.retraitLoading.set(false);
-      }
-    });
+  statutLabel(s: string): string {
+    const map: Record<string, string> = { EFFECTUEE: 'Effectuée', EN_ATTENTE: 'En attente', EN_COURS: 'En cours', ECHOUEE: 'Échouée', ANNULEE: 'Annulée', REFUSEE: 'Refusée' };
+    return map[s] ?? (s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ') : '—');
+  }
+
+  compte(f: Filtre): number {
+    return f === 'tous' ? this.transactions().length : this.transactions().filter(t => t.type === f).length;
   }
 }
