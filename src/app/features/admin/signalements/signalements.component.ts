@@ -6,93 +6,94 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../core/services/admin.service';
 import { Signalement } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-signalements',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   template: `
-<div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem">
-    <div><h2>Signalements</h2><p>Gestion des conflits et plaintes</p></div>
-    <div style="display:flex;gap:0.75rem">
-      @for (s of statutOptions; track s.value) {
-        <button class="btn btn-sm" [class.btn-primary]="filtreStatut()===s.value"
-          [class.btn-outline]="filtreStatut()!==s.value" (click)="filtreStatut.set(s.value);charger()">
-          {{ s.label }}
-        </button>
-      }
+<div class="lx-page">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Modération</span>
+      <h2>Signalements</h2>
+      <p>Conflits et plaintes entre passagers et chauffeurs.</p>
     </div>
+    <button class="lx-btn lx-btn-secondary" (click)="charger()" [disabled]="loading()"><lx-icon name="refresh" [class.lx-spin]="loading()" /> Actualiser</button>
   </div>
 
+  <nav class="lx-tabs" role="tablist">
+    @for (o of statutOptions; track o.value) {
+      <button role="tab" class="lx-tab" [class.is-active]="filtreStatut() === o.value" (click)="filtreStatut.set(o.value); charger()">{{ o.label }}</button>
+    }
+  </nav>
+
   @if (loading()) {
-    <div style="text-align:center;padding:3rem;color:var(--color-muted)">Chargement...</div>
+    <div class="lx-stack-sm">@for (i of [1,2]; track i) { <div class="lx-skeleton" style="min-height:160px"></div> }</div>
   } @else if (signalements().length === 0) {
-    <div class="card" style="text-align:center;padding:3rem">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-        style="width:48px;height:48px;color:var(--color-success);margin:0 auto 1rem;display:block">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
-      <p>Aucun signalement {{ filtreStatut() === 'OUVERT' ? 'ouvert' : '' }}</p>
+    <div class="lx-empty">
+      <lx-icon name="check-circle" style="color:var(--lx-emerald)" />
+      <p>Aucun signalement {{ libelleFiltre() }}.</p>
     </div>
   } @else {
-    <div style="display:flex;flex-direction:column;gap:1rem">
+    <div class="lx-stack-sm">
       @for (s of signalements(); track s.id) {
-        <div class="card">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">
-            <div>
-              <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
-                <span class="badge" [class]="getStatutBadge(s.statut)">{{ s.statut }}</span>
-                <span style="font-weight:600">{{ s.motif }}</span>
+        <article class="lx-card report" [class.is-open]="s.statut === 'OUVERT'">
+          <div class="report-head">
+            <span class="lx-icon-tile" [class.is-warn]="s.statut === 'OUVERT'"><lx-icon name="alert" /></span>
+            <div class="min-w-0" style="flex:1">
+              <div class="lx-row" style="gap:.5rem">
+                <strong class="motif">{{ s.motif }}</strong>
+                <span class="lx-badge" [ngClass]="getStatutBadge(s.statut)">{{ libelleStatut(s.statut) }}</span>
               </div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">
-                Plaignant #{{ s.plaignantId }} contre #{{ s.misEnCauseId }} · Trajet #{{ s.trajetId }}
-              </div>
-              <div style="font-size:0.8rem;color:var(--color-muted)">
-                {{ s.dateSignalement | date:'dd/MM/yyyy HH:mm' }}
-              </div>
-            </div>
-            <div style="font-size:0.85rem;color:var(--color-muted);white-space:nowrap">
-              #{{ s.id }}
+              <div class="lx-list-sub">Plaignant #{{ s.plaignantId }} contre #{{ s.misEnCauseId }} · Trajet #{{ s.trajetId }}</div>
+              <div class="lx-list-sub">{{ s.dateSignalement | date:'dd/MM/yyyy HH:mm' }} · Réf. #{{ s.id }}</div>
             </div>
           </div>
 
-          <div style="background:var(--color-bg);border-radius:var(--radius-md);padding:0.75rem;margin-bottom:1rem;font-size:0.875rem;line-height:1.6">
-            {{ s.description }}
-          </div>
+          <p class="description">{{ s.description }}</p>
+
+          @if (s.resolution) {
+            <div class="lx-alert lx-alert-success"><lx-icon name="check-circle" /><span><strong>Résolution :</strong> {{ s.resolution }}</span></div>
+          }
 
           @if (s.statut === 'OUVERT') {
             @if (resolutionActive() === s.id) {
-              <div>
-                <textarea class="field" [(ngModel)]="resolutionTexte" rows="3"
-                  placeholder="Saisissez la résolution..." style="margin-bottom:0.75rem"></textarea>
-                <div style="display:flex;gap:0.5rem">
-                  <button class="btn btn-success btn-sm" (click)="resoudre(s)" [disabled]="busy() === s.id || resolutionTexte.trim().length < 5">✓ Résoudre</button>
-                  <button class="btn btn-outline btn-sm" (click)="resolutionActive.set(null)">Annuler</button>
+              <div class="lx-stack-sm">
+                <label class="lx-label" [attr.for]="'res-' + s.id">Résolution</label>
+                <textarea class="lx-textarea" [id]="'res-' + s.id" [(ngModel)]="resolutionTexte" rows="3" style="min-height:90px"
+                  placeholder="Décrivez la décision prise (5 caractères minimum)…"></textarea>
+                <div class="report-actions">
+                  <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="resolutionActive.set(null)">Annuler</button>
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="resoudre(s)" [disabled]="busy() === s.id || resolutionTexte.trim().length < 5">
+                    <lx-icon name="check" /> Marquer comme résolu
+                  </button>
                 </div>
               </div>
             } @else {
-              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                <button class="btn btn-primary btn-sm" (click)="resolutionActive.set(s.id); resolutionTexte = ''">
-                  Traiter ce signalement
-                </button>
-                <button class="btn btn-danger btn-sm" (click)="bloquerMisEnCause(s)" [disabled]="busy() === s.id">
-                  Bloquer l'utilisateur #{{ s.misEnCauseId }}
-                </button>
+              <div class="report-actions">
+                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="bloquerMisEnCause(s)" [disabled]="busy() === s.id">Bloquer #{{ s.misEnCauseId }}</button>
+                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="resolutionActive.set(s.id); resolutionTexte = ''">Traiter</button>
               </div>
             }
           }
-
-          @if (s.resolution) {
-            <div style="margin-top:0.75rem;padding:0.75rem;background:#F0FDF4;border-radius:var(--radius-md);font-size:0.85rem;border:1px solid #BBF7D0">
-              <strong style="color:var(--color-success)">Résolution :</strong> {{ s.resolution }}
-            </div>
-          }
-        </div>
+        </article>
       }
     </div>
   }
-</div>`
+</div>`,
+  styles: [`
+    :host { display: block; }
+    .min-w-0 { min-width: 0; }
+    .report { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; &.is-open { border-color: rgba(251, 191, 36, 0.3); } }
+    .report-head { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .motif { font-weight: 500; font-size: 0.95rem; }
+    .lx-icon-tile.is-warn { background: rgba(251, 191, 36, 0.12); color: var(--lx-amber); }
+    .description { margin: 0; background: var(--lx-secondary); color: rgba(240, 236, 227, 0.85); border-radius: var(--lx-r-md); padding: 0.85rem 1rem; font-size: 0.875rem; line-height: 1.6; white-space: pre-line; }
+    .report-actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+    @media (max-width: 520px) { .report-actions .lx-btn { flex: 1; } }
+  `]
 })
 export class SignalementsComponent implements OnInit {
   loading = signal(true);
@@ -155,7 +156,9 @@ export class SignalementsComponent implements OnInit {
     this.busy.set(s.id);
     this.userSvc.changerStatut(s.misEnCauseId, 'BLOQUE').subscribe({
       next: () => {
-        this.adminSvc.changerBlocageCompte(s.misEnCauseId, true).subscribe({ error: () => {} });
+        this.adminSvc.changerBlocageCompte(s.misEnCauseId, true).subscribe({
+          error: () => this.toast.warning('Connexion non bloquée', "Le profil est bloqué mais pas le compte de connexion — réessayez depuis Utilisateurs.")
+        });
         this.busy.set(null);
         this.toast.success('Utilisateur bloqué', `#${s.misEnCauseId}`);
       },
@@ -164,7 +167,14 @@ export class SignalementsComponent implements OnInit {
   }
 
   getStatutBadge(s: string) {
-    return { 'OUVERT': 'badge badge-warning', 'RESOLU': 'badge badge-success',
-      'REJETE': 'badge badge-muted', 'EN_COURS': 'badge badge-info' }[s] || 'badge badge-muted';
+    return ({ OUVERT: 'lx-badge-warning', RESOLU: 'lx-badge-success', EN_COURS: 'lx-badge-info' } as Record<string, string>)[s] ?? '';
+  }
+
+  libelleStatut(s: string) {
+    return ({ OUVERT: 'Ouvert', RESOLU: 'Résolu', REJETE: 'Rejeté', EN_COURS: 'En cours' } as Record<string, string>)[s] ?? s;
+  }
+
+  libelleFiltre() {
+    return ({ OUVERT: 'ouvert', RESOLU: 'résolu', REJETE: 'rejeté' } as Record<string, string>)[this.filtreStatut()] ?? '';
   }
 }

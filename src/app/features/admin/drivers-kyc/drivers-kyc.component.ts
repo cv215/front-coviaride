@@ -1,113 +1,103 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AdminService } from '../../../core/services/admin.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { CommonModule } from '@angular/common';
 import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { Utilisateur } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-drivers-kyc',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   template: `
 <div>
-  <div style="margin-bottom:2rem">
-    <h2>Validation KYC Chauffeurs</h2>
-    <p>Vérification des permis, CNI, assurance et carte grise</p>
-  </div>
-
-  <div class="two-col-grid" style="margin-bottom:2rem">
-    <div class="card" style="border-left:4px solid var(--color-warning)">
-      <div style="font-size:0.8rem;font-weight:600;color:var(--color-warning);margin-bottom:0.25rem">EN ATTENTE</div>
-      <div style="font-size:2rem;font-weight:800">{{ enAttente().length }}</div>
-    </div>
-    <div class="card" style="border-left:4px solid var(--color-success)">
-      <div style="font-size:0.8rem;font-weight:600;color:var(--color-success);margin-bottom:0.25rem">VALIDÉS</div>
-      <div style="font-size:2rem;font-weight:800">{{ valides().length }}</div>
-    </div>
-  </div>
-
-  <div class="two-col-grid" style="gap:1.5rem">
-    <!-- EN ATTENTE -->
+  <div class="lx-page-head">
     <div>
-      <h3 style="margin-bottom:1rem"> En attente de validation</h3>
-      @if (loading()) {
-        <div class="card" style="text-align:center;padding:2rem;color:var(--color-muted)">Chargement des dossiers…</div>
-      } @else if (enAttente().length === 0) {
-        <div class="card" style="text-align:center;padding:2rem">
-          <p style="color:var(--color-success)">✓ Tous les chauffeurs sont validés</p>
-        </div>
-      }
-      @for (c of enAttente(); track c.id) {
-        <div class="card" style="margin-bottom:1rem">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">
-            <div>
-              <div style="font-weight:700">{{ c.prenom }} {{ c.nom }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ c.email }}</div>
+      <span class="lx-eyebrow">Vérification</span>
+      <h2>KYC des chauffeurs</h2>
+      <p>Contrôlez le permis, la pièce d'identité, l'assurance et la carte grise avant d'autoriser un chauffeur à publier.</p>
+    </div>
+    <button class="lx-btn lx-btn-secondary" (click)="charger()" [disabled]="loading()"><lx-icon name="refresh" [class.lx-spin]="loading()" /> Actualiser</button>
+  </div>
+
+  <div class="kpis">
+    <div class="lx-stat"><lx-icon name="clock" style="color:var(--lx-amber)" /><div class="lx-stat-value">{{ enAttente().length }}</div><div class="lx-stat-label">dossiers · en attente</div></div>
+    <div class="lx-stat"><lx-icon name="shield-check" style="color:var(--lx-emerald)" /><div class="lx-stat-value">{{ valides().length }}</div><div class="lx-stat-label">chauffeurs · validés</div></div>
+    <div class="lx-stat"><lx-icon name="x" style="color:var(--lx-red)" /><div class="lx-stat-value">{{ bloques().length }}</div><div class="lx-stat-label">dossiers · refusés</div></div>
+  </div>
+
+  <nav class="lx-tabs" role="tablist" style="margin-top:1.5rem">
+    <button class="lx-tab" [class.is-active]="vue() === 'attente'" (click)="vue.set('attente')">En attente <span class="lx-tab-count">{{ enAttente().length }}</span></button>
+    <button class="lx-tab" [class.is-active]="vue() === 'valides'" (click)="vue.set('valides')">Validés <span class="lx-tab-count">{{ valides().length }}</span></button>
+    <button class="lx-tab" [class.is-active]="vue() === 'bloques'" (click)="vue.set('bloques')">Refusés <span class="lx-tab-count">{{ bloques().length }}</span></button>
+  </nav>
+
+  @if (loading()) {
+    <div class="grid">@for (i of [1,2,3]; track i) { <div class="lx-skeleton" style="min-height:200px"></div> }</div>
+  } @else if (liste().length === 0) {
+    <div class="lx-empty">
+      <lx-icon [name]="vue() === 'attente' ? 'shield-check' : 'users'" />
+      <p>{{ vue() === 'attente' ? 'Aucun dossier en attente : tous les chauffeurs sont traités.' : 'Aucun chauffeur dans cette catégorie.' }}</p>
+    </div>
+  } @else {
+    <div class="grid">
+      @for (c of liste(); track c.id) {
+        <article class="lx-card dossier">
+          <div class="dossier-head">
+            <span class="lx-avatar is-ring">{{ initiales(c) }}</span>
+            <div class="min-w-0" style="flex:1">
+              <div class="name lx-truncate">{{ c.prenom }} {{ c.nom }}</div>
+              <div class="lx-list-sub">{{ c.email }}</div>
+              @if (c.telephone) { <div class="lx-list-sub">{{ c.telephone }}</div> }
             </div>
-            <span class="badge badge-warning">Non validé</span>
+            @if (c.kycValide) { <span class="lx-badge lx-badge-success">Validé</span> }
+            @else if (c.statut === 'BLOQUE') { <span class="lx-badge lx-badge-danger">Refusé</span> }
+            @else { <span class="lx-badge lx-badge-warning">À vérifier</span> }
           </div>
-          <div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1rem;font-size:0.85rem">
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <span [style.color]="c.permisValide ? 'var(--color-success)' : 'var(--color-danger)'">
-                {{ c.permisValide ? '✓' : '✕' }}
-              </span>
-              Permis de conduire
-            </div>
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <span [style.color]="c.kycValide ? 'var(--color-success)' : 'var(--color-danger)'">
-                {{ c.kycValide ? '✓' : '✕' }}
-              </span>
-              CNI / Pièce d'identité
-            </div>
+
+          <ul class="checks">
+            <li [class.ok]="c.permisValide || c.kycValide"><lx-icon [name]="c.permisValide || c.kycValide ? 'check-circle' : 'clock'" [size]="15" /> Permis de conduire</li>
+            <li [class.ok]="c.kycValide"><lx-icon [name]="c.kycValide ? 'check-circle' : 'clock'" [size]="15" /> Pièce d'identité</li>
             @if (c.vehicules?.length) {
-              <div style="display:flex;align-items:center;gap:0.5rem">
-                <span style="color:var(--color-success)">✓</span>
-                Véhicule : {{ c.vehicules![0].marque }} {{ c.vehicules![0].modele }}
-              </div>
+              <li class="ok"><lx-icon name="car" [size]="15" /> {{ c.vehicules![0].marque }} {{ c.vehicules![0].modele }}</li>
             } @else {
-              <div style="display:flex;align-items:center;gap:0.5rem">
-                <span style="color:var(--color-warning)">⚠</span>
-                Aucun véhicule enregistré
-              </div>
+              <li><lx-icon name="car" [size]="15" /> Véhicule non communiqué</li>
             }
-          </div>
-          <div style="display:flex;gap:0.5rem">
-            <button class="btn btn-success btn-sm" (click)="validerKyc(c)" [disabled]="busy() === c.id">✓ Valider KYC</button>
-            <button class="btn btn-danger btn-sm" (click)="bloquer(c)" [disabled]="busy() === c.id">✕ Refuser</button>
-          </div>
-        </div>
-      }
-    </div>
+            @if (c.noteMoyenne > 0) {
+              <li class="ok"><lx-icon name="star" [size]="15" /> {{ c.noteMoyenne | number:'1.1-1' }} · {{ c.nombreAvis }} avis</li>
+            }
+          </ul>
 
-    <!-- VALIDÉS -->
-    <div>
-      <h3 style="margin-bottom:1rem">✅ Chauffeurs validés</h3>
-      @for (c of valides(); track c.id) {
-        <div class="card" style="margin-bottom:1rem">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div style="font-weight:600">{{ c.prenom }} {{ c.nom }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ c.email }}</div>
-              @if (c.vehicules?.length) {
-                <div style="font-size:0.8rem;color:var(--color-muted);margin-top:0.25rem">
-                  {{ c.vehicules![0].marque }} {{ c.vehicules![0].modele }}
-                </div>
-              }
+          @if (!c.kycValide && c.statut !== 'BLOQUE') {
+            <div class="dossier-actions">
+              <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="bloquer(c)" [disabled]="busy() === c.id">Refuser</button>
+              <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="validerKyc(c)" [disabled]="busy() === c.id"><lx-icon name="shield-check" /> Valider</button>
             </div>
-            <div style="text-align:right">
-              <span class="badge badge-success">KYC ✓</span>
-              <div style="font-size:0.8rem;color:var(--color-muted);margin-top:0.25rem">
-                ★ {{ c.noteMoyenne | number:'1.1-1' }}
-              </div>
-            </div>
-          </div>
-        </div>
+          }
+        </article>
       }
     </div>
-  </div>
-</div>`
+  }
+</div>`,
+  styles: [`
+    :host { display: block; }
+    .min-w-0 { min-width: 0; }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+    .dossier { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; }
+    .dossier-head { display: flex; align-items: flex-start; gap: 0.8rem; }
+    .name { font-weight: 500; }
+    .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.85rem; color: var(--lx-muted-fg);
+      li { display: flex; align-items: center; gap: 0.5rem; } li.ok { color: var(--lx-fg); } li.ok lx-icon { color: var(--lx-emerald); } }
+    .dossier-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: auto; padding-top: 0.9rem; border-top: 1px solid var(--lx-border); }
+    @media (max-width: 640px) {
+      .kpis { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .dossier-actions .lx-btn { flex: 1; }
+    }
+  `]
 })
 export class DriversKycComponent implements OnInit {
   private userSvc = inject(UtilisateurService);
@@ -119,8 +109,15 @@ export class DriversKycComponent implements OnInit {
   busy = signal<number | null>(null);
   chauffeurs = signal<Utilisateur[]>([]);
 
-  enAttente() { return this.chauffeurs().filter(c => !c.kycValide && c.statut !== 'BLOQUE'); }
-  valides()   { return this.chauffeurs().filter(c => c.kycValide); }
+  vue = signal<'attente' | 'valides' | 'bloques'>('attente');
+  enAttente = computed(() => this.chauffeurs().filter(c => !c.kycValide && c.statut !== 'BLOQUE'));
+  valides   = computed(() => this.chauffeurs().filter(c => c.kycValide));
+  bloques   = computed(() => this.chauffeurs().filter(c => !c.kycValide && c.statut === 'BLOQUE'));
+  liste     = computed(() => this.vue() === 'attente' ? this.enAttente() : this.vue() === 'valides' ? this.valides() : this.bloques());
+
+  initiales(c: Utilisateur) {
+    return (`${(c.prenom ?? '').charAt(0)}${(c.nom ?? '').charAt(0)}`.toUpperCase()) || (c.email ?? '?').charAt(0).toUpperCase();
+  }
 
   ngOnInit() { this.charger(); }
 
@@ -163,7 +160,9 @@ export class DriversKycComponent implements OnInit {
     this.busy.set(c.id);
     this.userSvc.changerStatut(c.id, 'BLOQUE').subscribe({
       next: updated => {
-        this.adminSvc.changerBlocageCompte(c.id, true).subscribe({ error: () => {} });
+        this.adminSvc.changerBlocageCompte(c.id, true).subscribe({
+          error: () => this.toast.warning('Connexion non bloquée', "Le profil est refusé mais le compte de connexion n'a pas pu être bloqué — réessayez depuis Utilisateurs.")
+        });
         this.busy.set(null);
         this.chauffeurs.update(arr => arr.map(x => x.id === c.id ? { ...x, ...updated } : x));
         this.toast.info('Dossier refusé', 'Le chauffeur a été bloqué.');

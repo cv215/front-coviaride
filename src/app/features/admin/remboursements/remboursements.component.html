@@ -1,219 +1,111 @@
-<div>
-  <div style="margin-bottom:2rem">
-    <h2 style="margin:0 0 0.25rem">Remboursements</h2>
-    <p>Examinez et traitez les demandes des clients</p>
+<div class="lx-page">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Assistance</span>
+      <h2>Remboursements</h2>
+      <p>Examinez les demandes des passagers et créditez leur portefeuille si elles sont fondées.</p>
+    </div>
+    <button class="lx-btn lx-btn-secondary" (click)="charger(); chargerStats()" [disabled]="chargement()">
+      <lx-icon name="refresh" [class.lx-spin]="chargement()" /> Actualiser
+    </button>
   </div>
 
-  <!-- STATS -->
-  <div class="stats-grid" style="margin-bottom:2rem">
-    <div class="stat-card" style="border-left:4px solid var(--color-warning)">
-      <div class="stat-info">
-        <div class="value" style="color:var(--color-warning)">
-          {{ stats()['enAttente'] || 0 }}
-        </div>
-        <div class="label">En attente</div>
-      </div>
-    </div>
-    <div class="stat-card" style="border-left:4px solid var(--color-success)">
-      <div class="stat-info">
-        <div class="value" style="color:var(--color-success)">
-          {{ stats()['acceptees'] || 0 }}
-        </div>
-        <div class="label">Acceptées</div>
-      </div>
-    </div>
-    <div class="stat-card" style="border-left:4px solid var(--color-danger)">
-      <div class="stat-info">
-        <div class="value" style="color:var(--color-danger)">
-          {{ stats()['refusees'] || 0 }}
-        </div>
-        <div class="label">Refusées</div>
-      </div>
-    </div>
+  <div class="kpis">
+    <div class="lx-stat"><lx-icon name="clock" style="color:var(--lx-amber)" /><div class="lx-stat-value">{{ stats()['enAttente'] || 0 }}</div><div class="lx-stat-label">demandes · en attente</div></div>
+    <div class="lx-stat"><lx-icon name="check-circle" style="color:var(--lx-emerald)" /><div class="lx-stat-value">{{ stats()['acceptees'] || 0 }}</div><div class="lx-stat-label">demandes · acceptées</div></div>
+    <div class="lx-stat"><lx-icon name="x" style="color:var(--lx-red)" /><div class="lx-stat-value">{{ stats()['refusees'] || 0 }}</div><div class="lx-stat-label">demandes · refusées</div></div>
   </div>
 
-  <!-- FILTRES -->
-  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem">
+  <nav class="lx-tabs" role="tablist" style="margin-top:1.5rem">
     @for (f of filtres; track f.value) {
-      <button class="btn btn-sm"
-        [class.btn-primary]="filtreActif()===f.value"
-        [class.btn-outline]="filtreActif()!==f.value"
-        (click)="filtreActif.set(f.value);charger()">
+      <button role="tab" class="lx-tab" [class.is-active]="filtreActif() === f.value" (click)="filtreActif.set(f.value); charger()">
         {{ f.label }}
-        @if (f.value==='EN_ATTENTE' && (stats()['enAttente']||0) > 0) {
-          <span style="background:#EF4444;color:white;border-radius:9999px;
-            padding:0 5px;font-size:0.7rem;margin-left:4px">
-            {{ stats()['enAttente'] }}
-          </span>
-        }
+        @if (f.value === 'EN_ATTENTE' && (stats()['enAttente'] || 0) > 0) { <span class="lx-tab-count">{{ stats()['enAttente'] }}</span> }
       </button>
     }
-  </div>
+  </nav>
 
-  <!-- LISTE -->
   @if (chargement()) {
-    <div style="text-align:center;padding:3rem;color:var(--color-muted)">
-      Chargement...
-    </div>
+    <div class="lx-stack-sm">@for (i of [1,2]; track i) { <div class="lx-skeleton" style="min-height:170px"></div> }</div>
   } @else if (demandes().length === 0) {
-    <div class="card" style="text-align:center;padding:3rem">
-      <p style="color:var(--color-success)">
-        ✓ Aucune demande {{ filtreActif()==='EN_ATTENTE' ? 'en attente' : '' }}
-      </p>
+    <div class="lx-empty">
+      <lx-icon name="check-circle" style="color:var(--lx-emerald)" />
+      <p>Aucune demande {{ filtreActif() === 'EN_ATTENTE' ? 'en attente' : 'dans cette catégorie' }}.</p>
     </div>
   } @else {
-    <div style="display:flex;flex-direction:column;gap:1rem">
+    <div class="lx-stack-sm">
       @for (d of demandes(); track d.id) {
-        <div class="card">
-          <!-- INFOS DEMANDE -->
-          <div style="display:flex;align-items:flex-start;
-            justify-content:space-between;margin-bottom:1rem">
-            <div>
-              <div style="display:flex;align-items:center;gap:0.75rem;
-                margin-bottom:0.5rem">
-                <strong>#{{ d.id }}</strong>
-                <span class="badge" [class]="getBadge(d.statut)">
-                  {{ getLabel(d.statut) }}
-                </span>
+        <article class="lx-card request" [class.is-pending]="d.statut === 'EN_ATTENTE' || d.statut === 'EN_COURS'">
+          <div class="request-head">
+            <div class="min-w-0">
+              <div class="lx-row" style="gap:.5rem">
+                <strong>Demande #{{ d.id }}</strong>
+                <span class="lx-badge" [ngClass]="getBadge(d.statut)">{{ getLabel(d.statut) }}</span>
               </div>
-              <div style="font-size:0.82rem;color:var(--color-muted);
-                display:flex;gap:1.25rem;flex-wrap:wrap">
-                <span> Passager #{{ d.passagerId }}</span>
-                <span> Réservation #{{ d.reservationId }}</span>
-                <span> {{ d.dateCreation | date:'dd/MM/yyyy HH:mm' }}</span>
+              <div class="meta">
+                <span><lx-icon name="user" [size]="13" /> Passager #{{ d.passagerId }}</span>
+                <span><lx-icon name="receipt" [size]="13" /> Réservation CR-{{ d.reservationId }}</span>
+                <span><lx-icon name="clock" [size]="13" /> {{ d.dateCreation | date:'dd/MM/yyyy HH:mm' }}</span>
               </div>
             </div>
-            <div style="text-align:right;flex-shrink:0">
-              <div style="font-size:1.4rem;font-weight:800">
-                {{ d.montant | number:'1.0-0' }} XAF
-              </div>
+            <div class="amount lx-display">{{ d.montant | number:'1.0-0' }} <span>FCFA</span></div>
+          </div>
+
+          <div class="details">
+            <div class="detail-box">
+              <span class="lx-label" style="margin-bottom:.3rem">Motif</span>
+              <span>{{ getMotifLabel(d.motif) }}</span>
+            </div>
+            <div class="detail-box">
+              <span class="lx-label" style="margin-bottom:.3rem">Description du passager</span>
+              <span class="desc">{{ d.details }}</span>
             </div>
           </div>
 
-          <!-- MOTIF + DÉTAILS -->
-          <div class="admin-remboursement-details">
-            <div style="background:var(--color-bg);border-radius:8px;
-              padding:0.875rem">
-              <div style="font-size:0.7rem;text-transform:uppercase;
-                letter-spacing:0.05em;color:var(--color-muted);
-                margin-bottom:0.35rem;font-weight:700">Motif</div>
-              <div style="font-size:0.875rem;font-weight:600">
-                {{ getMotifLabel(d.motif) }}
-              </div>
-            </div>
-            <div style="background:var(--color-bg);border-radius:8px;
-              padding:0.875rem">
-              <div style="font-size:0.7rem;text-transform:uppercase;
-                letter-spacing:0.05em;color:var(--color-muted);
-                margin-bottom:0.35rem;font-weight:700">
-                Description du client
-              </div>
-              <div style="font-size:0.875rem;line-height:1.6">
-                {{ d.details }}
-              </div>
-            </div>
-          </div>
-
-          <!-- RÉPONSE ADMIN si traitée -->
           @if (d.commentaireAdmin) {
-            <div style="padding:0.75rem;border-radius:8px;
-              font-size:0.85rem;margin-bottom:1rem"
-              [style.background]="d.statut==='ACCEPTE'?'#ECFDF5':'#FEF2F2'"
-              [style.border]="d.statut==='ACCEPTE'
-                ? '1px solid #A7F3D0':'1px solid #FECACA'">
-              <strong>Réponse admin :</strong> {{ d.commentaireAdmin }}
-              @if (d.dateTraitement) {
-                <span style="margin-left:0.5rem;opacity:0.65;font-size:0.78rem">
-                  · {{ d.dateTraitement | date:'dd/MM/yyyy HH:mm' }}
-                </span>
-              }
+            <div class="lx-alert" [ngClass]="d.statut === 'ACCEPTE' ? 'lx-alert-success' : 'lx-alert-error'">
+              <lx-icon [name]="d.statut === 'ACCEPTE' ? 'check-circle' : 'info'" />
+              <span><strong>Réponse :</strong> {{ d.commentaireAdmin }}
+                @if (d.dateTraitement) { <span style="opacity:.7"> · {{ d.dateTraitement | date:'dd/MM/yyyy HH:mm' }}</span> }</span>
             </div>
           }
 
-          <!-- FORMULAIRE TRAITEMENT -->
-          @if (d.statut==='EN_ATTENTE' || d.statut==='EN_COURS') {
-            @if (demandeOuverte()===d.id) {
-              <div style="border-top:1px solid var(--color-border);
-                padding-top:1.25rem">
-                <p style="font-weight:600;margin-bottom:1rem">
-                  Traiter la demande
-                </p>
-                <form [formGroup]="formTraitement" (ngSubmit)="traiter(d)">
-                  <!-- Décision -->
-                  <div class="admin-remboursement-decision">
-                    <label style="display:flex;align-items:center;gap:0.5rem;
-                      padding:0.875rem;border:2px solid;border-radius:8px;
-                      cursor:pointer;transition:all 0.15s"
-                      [style.border-color]="formTraitement.get('accepte')?.value===true
-                        ? 'var(--color-success)':'var(--color-border)'"
-                      [style.background]="formTraitement.get('accepte')?.value===true
-                        ? '#ECFDF5':'transparent'">
-                      <input type="radio" formControlName="accepte" [value]="true"/>
-                      <span style="font-weight:600;color:var(--color-success)">
-                        ✓ Accepter — créditer {{ d.montant|number:'1.0-0' }} XAF
-                      </span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:0.5rem;
-                      padding:0.875rem;border:2px solid;border-radius:8px;
-                      cursor:pointer;transition:all 0.15s"
-                      [style.border-color]="formTraitement.get('accepte')?.value===false
-                        ? 'var(--color-danger)':'var(--color-border)'"
-                      [style.background]="formTraitement.get('accepte')?.value===false
-                        ? '#FEF2F2':'transparent'">
-                      <input type="radio" formControlName="accepte" [value]="false"/>
-                      <span style="font-weight:600;color:var(--color-danger)">
-                        ✕ Refuser
-                      </span>
-                    </label>
-                  </div>
-
-                  <!-- Commentaire -->
-                  <div class="form-group" style="margin-bottom:1rem">
-                    <label>
-                      Message pour le client *
-                      <span style="color:var(--color-muted);font-weight:400">
-                        (reçu par notification + email)
-                      </span>
-                    </label>
-                    <textarea class="field" formControlName="commentaire"
-                      rows="3"
-                      placeholder="Expliquez votre décision...">
-                    </textarea>
-                    @if (formTraitement.get('commentaire')?.invalid
-                      && formTraitement.get('commentaire')?.touched) {
-                      <div class="error-msg">Commentaire requis</div>
-                    }
-                  </div>
-
-                  @if (erreurTraitement()) {
-                    <div class="alert alert-error" style="margin-bottom:1rem">
-                      {{ erreurTraitement() }}
-                    </div>
+          @if (d.statut === 'EN_ATTENTE' || d.statut === 'EN_COURS') {
+            @if (demandeOuverte() === d.id) {
+              <form class="treat" [formGroup]="formTraitement" (ngSubmit)="traiter(d)">
+                <span class="lx-label">Décision</span>
+                <div class="decision" role="radiogroup">
+                  <label class="choice" [class.is-yes]="formTraitement.get('accepte')?.value === true">
+                    <input type="radio" formControlName="accepte" [value]="true" />
+                    <lx-icon name="check-circle" /> Accepter et créditer {{ d.montant | number:'1.0-0' }} FCFA
+                  </label>
+                  <label class="choice" [class.is-no]="formTraitement.get('accepte')?.value === false">
+                    <input type="radio" formControlName="accepte" [value]="false" />
+                    <lx-icon name="x" /> Refuser la demande
+                  </label>
+                </div>
+                <div>
+                  <label class="lx-label" [attr.for]="'c-' + d.id">Message au passager <span class="lx-muted" style="text-transform:none;letter-spacing:0">(notification + email)</span></label>
+                  <textarea class="lx-textarea" [id]="'c-' + d.id" formControlName="commentaire" rows="3" style="min-height:90px" placeholder="Expliquez votre décision…"></textarea>
+                  @if (formTraitement.get('commentaire')?.invalid && formTraitement.get('commentaire')?.touched) {
+                    <div class="lx-error">Message obligatoire (5 caractères minimum)</div>
                   }
-
-                  <div style="display:flex;gap:0.75rem">
-                    <button type="submit" class="btn btn-primary"
-                      [disabled]="traitementLoading()||formTraitement.invalid">
-                      {{ traitementLoading() ? 'Traitement...' : 'Confirmer' }}
-                    </button>
-                    <button type="button" class="btn btn-outline"
-                      (click)="demandeOuverte.set(null)">
-                      Annuler
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+                @if (erreurTraitement()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ erreurTraitement() }}</div> }
+                <div class="actions">
+                  <button type="button" class="lx-btn lx-btn-ghost" (click)="demandeOuverte.set(null)">Annuler</button>
+                  <button type="submit" class="lx-btn lx-btn-primary" [disabled]="traitementLoading() || formTraitement.invalid">
+                    {{ traitementLoading() ? 'Traitement…' : 'Confirmer la décision' }}
+                  </button>
+                </div>
+              </form>
             } @else {
-              <div style="border-top:1px solid var(--color-border);
-                padding-top:1rem">
-                <button class="btn btn-primary btn-sm"
-                  (click)="ouvrirForm(d)">
-                  Traiter cette demande →
-                </button>
+              <div class="actions">
+                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="ouvrirForm(d)">Traiter cette demande <lx-icon name="arrow-right" /></button>
               </div>
             }
           }
-        </div>
+        </article>
       }
     </div>
   }

@@ -102,7 +102,7 @@ export const routes: Routes = [
       },
       {
        path: 'messages',
-       loadComponent: () => import('./features/chauffeur/messages/messages.component').then(m => m.MessagesComponent)
+       loadComponent: () => import('./features/client/messages/messages.component').then(m => m.MessagesComponent)
       }
     ]
   },

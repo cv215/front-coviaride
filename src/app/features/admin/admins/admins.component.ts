@@ -4,96 +4,99 @@ import { ConfirmService } from '../../../core/services/confirm.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AdminService } from '../../../core/services/admin.service';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-admins',
   standalone: true,
-  imports: [CommonModule, FormsModule,ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, IconComponent],
   template: `
-<div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+<div class="lx-page">
+  <div class="lx-page-head">
     <div>
-      <h2>Gestion des administrateurs</h2>
-      <p>Créer et gérer les comptes admin avec leurs services attribués.</p>
+      <span class="lx-eyebrow">Équipe</span>
+      <h2>Administrateurs</h2>
+      <p>Créez des comptes administrateurs et attribuez-leur des services.</p>
     </div>
-    <button class="btn btn-primary" (click)="showForm.set(true)">+ Ajouter un admin</button>
+    <button class="lx-btn" [class.lx-btn-primary]="!showForm()" [class.lx-btn-secondary]="showForm()" (click)="showForm() ? resetForm() : showForm.set(true)">
+      <lx-icon [name]="showForm() ? 'x' : 'plus'" /> {{ showForm() ? 'Fermer' : 'Ajouter un admin' }}
+    </button>
   </div>
 
   @if (showForm()) {
-    <div class="card" style="margin-bottom:1.5rem">
-      <h3 style="margin-bottom:1rem">Nouveau compte administrateur</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem">
-        <label>
-          <span>Email</span>
-          <input class="field" type="email" [(ngModel)]="form.email" placeholder="admin@coviaride.com" />
-        </label>
-        <label>
-          <span>Mot de passe</span>
-          <input class="field" type="password" [(ngModel)]="form.motDePasse" placeholder="Minimum 8 caractères" />
-        </label>
+    <form class="lx-card lx-stack form-card" (ngSubmit)="creerAdmin()">
+      <h3 class="lx-card-title" style="margin:0">Nouveau compte administrateur</h3>
+      <div class="lx-form-grid">
+        <div>
+          <label class="lx-label" for="a-email">Email</label>
+          <div class="lx-field has-icon"><span class="lx-field-icon"><lx-icon name="mail" /></span>
+            <input id="a-email" class="lx-input" type="email" name="email" [(ngModel)]="form.email" placeholder="admin@coviaride.com" autocomplete="off" /></div>
+        </div>
+        <div>
+          <label class="lx-label" for="a-pwd">Mot de passe</label>
+          <div class="lx-field has-icon"><span class="lx-field-icon"><lx-icon name="lock" /></span>
+            <input id="a-pwd" class="lx-input" type="password" name="motDePasse" [(ngModel)]="form.motDePasse" placeholder="8 caractères minimum" autocomplete="new-password" /></div>
+        </div>
       </div>
-
-      <div style="margin-top:1rem">
-        <div style="margin-bottom:0.5rem;font-weight:600">Services assignés</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
+      <div>
+        <span class="lx-label">Services attribués</span>
+        <div class="chips">
           @for (service of servicesDisponibles; track service) {
-            <label style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;border:1px solid var(--color-border);border-radius:999px;background:var(--color-bg);cursor:pointer">
-              <input type="checkbox" [checked]="form.services.includes(service)" (change)="toggleService(service)" />
-              <span>{{ service }}</span>
-            </label>
+            <button type="button" class="lx-chip" [class.is-active]="form.services.includes(service)" (click)="toggleService(service)"
+              [attr.aria-pressed]="form.services.includes(service)">
+              @if (form.services.includes(service)) { <lx-icon name="check" /> }
+              {{ libelleService(service) }}
+            </button>
           }
         </div>
       </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.5rem">
-        <button class="btn btn-ghost" (click)="resetForm()">Annuler</button>
-        <button class="btn btn-primary" (click)="creerAdmin()">Enregistrer</button>
+      <div class="form-actions">
+        <button type="button" class="lx-btn lx-btn-ghost" (click)="resetForm()">Annuler</button>
+        <button type="submit" class="lx-btn lx-btn-primary" [disabled]="envoi()">{{ envoi() ? 'Création…' : 'Créer le compte' }}</button>
       </div>
-    </div>
+    </form>
   }
 
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Rôle</th>
-          <th>Services</th>
-          <th>Statut</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (admin of admins(); track admin.id) {
-          <tr>
-            <td>{{ admin.email }}</td>
-            <td><span class="badge badge-info">{{ admin.role }}</span></td>
-            <td>
-              @if (admin.services?.length) {
-                <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-                  @for (s of admin.services; track s) {
-                    <span class="badge badge-muted">{{ s }}</span>
-                  }
-                </div>
-              } @else {
-                <span class="badge badge-warning">Aucun</span>
-              }
-            </td>
-            <td>
-              <span class="badge" [class]="admin.actif ? 'badge-success' : 'badge-danger'">
-                {{ admin.actif ? 'Actif' : 'Inactif' }}
-              </span>
-            </td>
-            <td>
-              <button class="btn btn-outline btn-sm" (click)="reinitialiserMotDePasse(admin)">Réinitialiser MDP</button>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+  @if (chargement()) {
+    <div class="lx-stack-sm">@for (i of [1,2]; track i) { <div class="lx-skeleton" style="min-height:80px"></div> }</div>
+  } @else if (admins().length === 0) {
+    <div class="lx-empty"><lx-icon name="shield" /><p>Aucun administrateur trouvé.</p></div>
+  } @else {
+    <div class="lx-list">
+      @for (admin of admins(); track admin.id) {
+        <div class="admin-row">
+          <span class="lx-avatar">{{ (admin.email || '?').charAt(0).toUpperCase() }}</span>
+          <div class="lx-list-body">
+            <span class="lx-list-title lx-truncate">{{ admin.email }}</span>
+            <span class="lx-list-sub">{{ admin.role === 'SUPER_ADMIN' ? 'Super administrateur' : 'Administrateur' }}</span>
+            <div class="chips small">
+              @for (s of admin.services ?? []; track s) { <span class="lx-badge">{{ libelleService(s) }}</span> }
+              @empty { <span class="lx-badge lx-badge-warning">Aucun service</span> }
+            </div>
+          </div>
+          <div class="admin-right">
+            <span class="lx-badge" [class.lx-badge-success]="admin.actif" [class.lx-badge-danger]="!admin.actif">{{ admin.actif ? 'Actif' : 'Inactif' }}</span>
+            <button class="lx-btn lx-btn-secondary lx-btn-sm" (click)="reinitialiserMotDePasse(admin)"><lx-icon name="lock" /> Mot de passe</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
 </div>
-  `
+  `,
+  styles: [`
+    :host { display: block; }
+    .form-card { margin-bottom: 1.5rem; border-color: rgba(200, 146, 42, 0.25); }
+    .form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; &.small { gap: 0.35rem; margin-top: 0.5rem; } }
+    .admin-row { display: flex; align-items: flex-start; gap: 0.9rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--lx-border); &:last-child { border-bottom: 0; } }
+    .admin-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; }
+    @media (max-width: 560px) {
+      .admin-row { flex-wrap: wrap; }
+      .admin-right { flex-direction: row; width: 100%; justify-content: space-between; align-items: center; }
+      .form-actions .lx-btn { flex: 1; }
+    }
+  `]
 })
 export class AdminsComponent implements OnInit {
   private toast = inject(ToastService);
@@ -101,6 +104,7 @@ export class AdminsComponent implements OnInit {
 
   admins = signal<any[]>([]);
   showForm = signal(false);
+  chargement = signal(true);
   envoi = signal(false);
   servicesDisponibles = ['UTILISATEURS', 'SIGNALEMENTS', 'TRAJETS', 'COMMISSIONS', 'REMBOURSEMENTS', 'KYC', 'URGENCES'];
   form = { email: '', motDePasse: '', services: [] as string[] };
@@ -112,9 +116,10 @@ export class AdminsComponent implements OnInit {
   }
 
   loadAdmins() {
+    this.chargement.set(true);
     this.adminService.listAdministrateurs().subscribe({
-      next: data => this.admins.set(data ?? []),
-      error: err => { this.admins.set([]); this.toast.error('Chargement des administrateurs impossible', err); }
+      next: data => { this.admins.set(data ?? []); this.chargement.set(false); },
+      error: err => { this.admins.set([]); this.chargement.set(false); this.toast.error('Chargement des administrateurs impossible', err); }
     });
   }
 
@@ -135,10 +140,15 @@ export class AdminsComponent implements OnInit {
       this.toast.warning('Formulaire incomplet', 'Email, mot de passe et au moins un service sont obligatoires.');
       return;
     }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.form.email.trim())) {
+      this.toast.warning('Email invalide', 'Saisissez une adresse email valide.');
+      return;
+    }
     if (this.form.motDePasse.length < 8) {
       this.toast.warning('Mot de passe trop court', '8 caractères minimum.');
       return;
     }
+    if (this.envoi()) return;
     this.envoi.set(true);
     this.adminService.createAdministrateur({
       email: this.form.email.trim(),
@@ -153,6 +163,11 @@ export class AdminsComponent implements OnInit {
       },
       error: err => { this.envoi.set(false); this.toast.error('Création impossible', err); }
     });
+  }
+
+  libelleService(s: string): string {
+    return ({ UTILISATEURS: 'Utilisateurs', SIGNALEMENTS: 'Signalements', TRAJETS: 'Trajets', COMMISSIONS: 'Commissions',
+      REMBOURSEMENTS: 'Remboursements', KYC: 'KYC', URGENCES: 'Urgences' } as Record<string, string>)[s] ?? s;
   }
 
   async reinitialiserMotDePasse(admin: any) {

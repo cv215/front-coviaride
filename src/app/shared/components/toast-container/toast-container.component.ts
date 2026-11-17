@@ -32,8 +32,8 @@ import { ToastService } from '../../../core/services/toast.service';
     }
     .toast {
       pointer-events: auto; display: flex; gap: .75rem; align-items: flex-start;
-      background: #161a22; color: #eef1f8; border: 1px solid rgba(255,255,255,.1);
-      border-left: 4px solid #3b82f6; border-radius: 12px; padding: .8rem .9rem;
+      background: #111318; color: #f0ece3; font-family: 'DM Sans', system-ui, sans-serif; border: 1px solid rgba(240,236,227,.086);
+      border-left: 4px solid #c8922a; border-radius: 12px; padding: .8rem .9rem;
       box-shadow: 0 12px 30px rgba(0,0,0,.35); animation: toast-in .25s ease-out;
     }
     .toast-success { border-left-color: #10b981; }
@@ -41,14 +41,14 @@ import { ToastService } from '../../../core/services/toast.service';
     .toast-warning { border-left-color: #f59e0b; }
     .toast-icon {
       flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
-      font-weight: 800; font-size: .85rem; background: rgba(59,130,246,.18); color: #93c5fd;
+      font-weight: 800; font-size: .85rem; background: rgba(200,146,42,.18); color: #e6c27a;
     }
     .toast-success .toast-icon { background: rgba(16,185,129,.18); color: #6ee7b7; }
     .toast-error .toast-icon   { background: rgba(239,68,68,.18); color: #fca5a5; }
     .toast-warning .toast-icon { background: rgba(245,158,11,.18); color: #fcd34d; }
     .toast-body { flex: 1; min-width: 0; }
-    .toast-title { font-weight: 700; font-size: .95rem; }
-    .toast-msg { color: #aeb6c2; font-size: .88rem; margin-top: .15rem; line-height: 1.4; word-break: break-word; }
+    .toast-title { font-weight: 500; font-size: .92rem; }
+    .toast-msg { color: #85847d; font-size: .88rem; margin-top: .15rem; line-height: 1.4; word-break: break-word; }
     .toast-close {
       background: none; border: none; color: #aeb6c2; font-size: 1.25rem; line-height: 1;
       cursor: pointer; padding: 0 .2rem;
@@ -56,6 +56,8 @@ import { ToastService } from '../../../core/services/toast.service';
     .toast-close:hover { color: #fff; }
     @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+    /* Au-dessus de la barre de navigation basse sur mobile */
+    @media (max-width: 767px) { .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); left: 1rem; right: 1rem; width: auto; } }
   `]
 })
 export class ToastContainerComponent {

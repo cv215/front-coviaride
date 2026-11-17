@@ -1,134 +1,209 @@
-import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
-import { ConfirmService } from '../../../core/services/confirm.service';
-import { ToastService, fcfa } from '../../../core/services/toast.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { ConfirmService } from '../../../core/services/confirm.service';
+import { ToastService, fcfa } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
 import { Reservation, Trajet, Portefeuille } from '../../../core/models';
-import { shareReplay } from 'rxjs';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
+
+const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' };
 
 @Component({
   selector: 'app-chauffeur-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
-<div>
-  <h2 style="margin-bottom:0.5rem">Tableau de bord</h2>
-  <p style="margin-bottom:2rem">Gérez vos courses et réservations</p>
+<div class="dash">
 
-  <div class="stats-grid" style="margin-bottom:2rem">
-    <div class="stat-card">
-      <div class="stat-info">
-        <div class="value">{{ totalTrajets() }}</div>
-        <div class="label">Trajets publiés</div>
-      </div>
-      <div class="stat-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-info">
-        <div class="value">{{ demandesEnAttente() }}</div>
-        <div class="label">Demandes en attente</div>
-      </div>
-      <div class="stat-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-info">
-        <div class="value">{{ portefeuille()?.soldeDisponible ?? 0 | number:'1.0-0' }} FCFA</div>
-        <div class="label">Solde disponible</div>
-      </div>
-      <div class="stat-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      </div>
-    </div>
-  </div>
-
-  <!-- DEMANDES EN ATTENTE -->
-  <div class="chauffeur-dashboard-main">
-    <div>
-      <h3 style="margin-bottom:1rem">Demandes de réservation</h3>
-      @if (reservationsEnAttente().length === 0) {
-        <div class="card" style="text-align:center;padding:2rem">
-          <p>Aucune demande en attente</p>
+  <!-- ── Trajet en cours ─────────────────────────────────── -->
+  @if (trajetEnCours(); as t) {
+    <section class="lx-card lx-card-glow live lx-rise">
+      <div class="live-bar"></div>
+      <div class="live-inner">
+        <div class="live-head">
+          <div class="lx-row" style="gap:.5rem"><span class="lx-ping"></span><span class="live-label">Trajet en cours</span></div>
+          <span class="lx-muted" style="font-size:.75rem">Trajet #{{ t.id }}</span>
         </div>
+        <div class="live-grid">
+          <div class="lx-route">
+            <div class="lx-route-point"><span class="lx-route-mark is-start"></span><span>{{ t.villeDepart }}</span></div>
+            <div class="lx-route-line"></div>
+            <div class="lx-route-point"><span class="lx-route-mark is-end"><lx-icon name="map-pin" /></span><span>{{ t.villeArrivee }}</span></div>
+          </div>
+          <div class="live-figures">
+            <div><span class="lx-display">{{ t.nombrePlaces - t.placesDisponibles }}</span><span class="lx-muted">passager(s) à bord</span></div>
+            <div><span class="lx-display">{{ (t.nombrePlaces - t.placesDisponibles) * t.prixParPlace | number:'1.0-0' }}</span><span class="lx-muted">FCFA attendus</span></div>
+          </div>
+        </div>
+        <div class="live-actions">
+          <button class="lx-btn lx-btn-primary" style="flex:1 1 220px" (click)="terminer(t)" [disabled]="action() === t.id">
+            <lx-icon name="check-circle" /> Terminer le trajet
+          </button>
+          <a class="lx-btn lx-btn-secondary" routerLink="/chauffeur/courses"><lx-icon name="users" /> Passagers</a>
+          <a class="lx-btn lx-btn-secondary" routerLink="/chauffeur/messages"><lx-icon name="message" /> Messages</a>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- ── Statistiques ────────────────────────────────────── -->
+  <section class="lx-stats lx-rise lx-rise-1">
+    <div class="lx-stat">
+      <lx-icon name="route" style="color:var(--lx-primary)" />
+      <div class="lx-stat-value">{{ totalTrajets() }}</div>
+      <div class="lx-stat-label">trajets · publiés</div>
+    </div>
+    <div class="lx-stat">
+      <lx-icon name="clock" style="color:var(--lx-amber)" />
+      <div class="lx-stat-value">{{ demandesEnAttente() }}</div>
+      <div class="lx-stat-label">demandes · en attente</div>
+    </div>
+    <div class="lx-stat">
+      <lx-icon name="calendar" style="color:var(--lx-blue)" />
+      <div class="lx-stat-value">{{ trajetsAVenir().length }}</div>
+      <div class="lx-stat-label">trajets · à venir</div>
+    </div>
+    <div class="lx-stat">
+      <lx-icon name="wallet" style="color:var(--lx-emerald)" />
+      <div class="lx-stat-value">{{ (portefeuille()?.soldeDisponible ?? 0) | number:'1.0-0' }} F</div>
+      <div class="lx-stat-label">solde · disponible</div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <!-- Demandes -->
+    <section class="lx-rise lx-rise-2">
+      <div class="lx-section-head">
+        <h2>Demandes de réservation</h2>
+        @if (demandesEnAttente() > 0) { <span class="lx-badge lx-badge-warning">{{ demandesEnAttente() }} en attente</span> }
+      </div>
+      @if (chargement()) {
+        <div class="lx-stack-sm"><div class="lx-skeleton"></div><div class="lx-skeleton"></div></div>
       } @else {
-        @for (r of reservationsEnAttente(); track r.id) {
-          <div class="card" style="margin-bottom:1rem">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-              <div>
-                <strong>Passager #{{ r.passagerId }}</strong>
-                <div style="font-size:0.85rem;color:var(--color-muted)">
-                  {{ r.villeDepart ? r.villeDepart + ' → ' + r.villeArrivee : 'Trajet #' + r.trajetId }}
-                  · {{ r.nombrePlaces }} place(s){{ r.pointArret ? ' · arrêt ' + r.pointArret : '' }}
+        <div class="lx-stack-sm">
+          @for (r of reservationsEnAttente(); track r.id) {
+            <article class="lx-card request">
+              <div class="request-top">
+                <span class="lx-icon-tile is-gold"><lx-icon name="user" /></span>
+                <div class="lx-list-body">
+                  <span class="lx-list-title">Passager #{{ r.passagerId }}</span>
+                  <span class="lx-list-sub">{{ r.villeDepart ? r.villeDepart + ' → ' + r.villeArrivee : 'Trajet #' + r.trajetId }}</span>
+                  <span class="lx-list-sub">{{ r.nombrePlaces }} place{{ r.nombrePlaces > 1 ? 's' : '' }}@if (r.pointArret) { · arrêt {{ r.pointArret }} }</span>
                 </div>
-                <div style="font-weight:700;margin-top:.2rem">{{ fcfa(r.montantTotal) }}</div>
+                <span class="request-price">{{ fcfa(r.montantTotal) }}</span>
               </div>
-              <span class="badge badge-warning">En attente</span>
+              <div class="request-actions">
+                <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="refuser(r)" [disabled]="traitement() === r.id"><lx-icon name="x" /> Refuser</button>
+                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="accepter(r)" [disabled]="traitement() === r.id"><lx-icon name="check" /> Accepter</button>
+              </div>
+            </article>
+          } @empty {
+            <div class="lx-empty">
+              <lx-icon name="clock" />
+              <p>Aucune demande en attente.</p>
+              <p class="lx-muted" style="font-size:.78rem">Les nouvelles demandes s'affichent ici automatiquement.</p>
             </div>
-            <div style="display:flex;gap:0.75rem">
-              <button class="btn btn-success btn-sm" (click)="accepter(r)" [disabled]="traitement() === r.id">✓ Accepter</button>
-              <button class="btn btn-danger btn-sm" (click)="refuser(r)" [disabled]="traitement() === r.id">✕ Refuser</button>
-            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Mes trajets -->
+    <section class="lx-rise lx-rise-3">
+      <div class="lx-section-head">
+        <h2>Mes trajets</h2>
+        <a routerLink="/chauffeur/courses" class="lx-link">Tout voir <lx-icon name="chevron-right" /></a>
+      </div>
+      <div class="lx-stack-sm">
+        @for (t of trajetsAVenir().slice(0, 4); track t.id) {
+          <article class="lx-ride trip">
+            <span class="lx-icon-tile"><lx-icon name="car" /></span>
+            <span class="lx-list-body">
+              <span class="lx-list-title">{{ t.villeDepart }} → {{ t.villeArrivee }}</span>
+              <span class="lx-list-sub cap">{{ t.dateDepart | date:'EEE d MMM' }} · {{ (t.heureDepart || '').slice(0,5) }}</span>
+              <span class="lx-list-sub">{{ t.placesDisponibles }} / {{ t.nombrePlaces }} places libres</span>
+            </span>
+            <span class="trip-right">
+              <span class="lx-ride-price">{{ t.prixParPlace | number:'1.0-0' }} F</span>
+              <span class="lx-badge" [ngClass]="badgeTrajet(t.statut)">{{ libelleTrajet(t.statut) }}</span>
+            </span>
+            @if (t.statut === 'PLANIFIE') {
+              <div class="trip-actions">
+                <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="annuler(t)" [disabled]="action() === t.id">Annuler</button>
+                <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demarrer(t)" [disabled]="action() === t.id"><lx-icon name="navigation" /> Démarrer</button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <div class="lx-empty">
+            <lx-icon name="route" />
+            <p>Aucun trajet planifié.</p>
+            <a routerLink="/chauffeur/courses" class="lx-btn lx-btn-primary lx-btn-sm"><lx-icon name="plus" /> Publier un trajet</a>
           </div>
         }
-      }
-    </div>
-
-    <!-- MES TRAJETS -->
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-        <h3>Mes trajets</h3>
-        <a routerLink="/chauffeur/courses" class="btn btn-outline btn-sm">Voir tout</a>
       </div>
-      @for (t of mesTrajets(); track t.id) {
-        <div class="card" style="margin-bottom:1rem">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div>
-              <div style="font-weight:600">{{ t.villeDepart }} → {{ t.villeArrivee }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.dateDepart | date:'EEE d MMM' }} · {{ (t.heureDepart || '').slice(0,5) }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.placesDisponibles }} place(s) libre(s) sur {{ t.nombrePlaces }}</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-weight:700">{{ t.prixParPlace | number:'1.0-0' }} FCFA</div>
-              <span class="badge" [class]="getBadgeTrajet(t.statut)">{{ ({ PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' })[t.statut] ?? t.statut }}</span>
-            </div>
-          </div>
-          @if (t.statut === 'PLANIFIE') {
-            <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
-              <button class="btn btn-primary btn-sm" (click)="demarrer(t)">▶ Démarrer</button>
-              <button class="btn btn-danger btn-sm" (click)="annuler(t)">✕ Annuler</button>
-            </div>
-          }
-          @if (t.statut === 'EN_COURS') {
-            <button class="btn btn-success btn-sm" style="margin-top:0.75rem" (click)="terminer(t)">
-              ✓ Terminer le trajet
-            </button>
-          }
-        </div>
-      }
-    </div>
+    </section>
   </div>
-</div>`
+</div>`,
+  styles: [`
+    :host { display: block; }
+    .dash { display: flex; flex-direction: column; gap: 2rem; }
+    .cap { text-transform: capitalize; }
+
+    .live { padding: 0; }
+    .live-bar { height: 4px; background: linear-gradient(90deg, var(--lx-primary), #fcd34d, var(--lx-primary)); background-size: 200% 100%; animation: lx-shimmer 2s linear infinite; }
+    .live-inner { padding: 1.5rem; }
+    .live-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .live-label { font-size: 0.8rem; font-weight: 500; color: var(--lx-primary); text-transform: uppercase; letter-spacing: 0.08em; }
+    .live-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: center; }
+    .live-figures { display: flex; gap: 2rem;
+      > div { display: flex; flex-direction: column; } .lx-display { font-size: 2rem; color: var(--lx-primary); line-height: 1.1; } .lx-muted { font-size: 0.75rem; } }
+    .live-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--lx-border); }
+
+    .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-items: start; }
+    .request { padding: 1.1rem 1.25rem; }
+    .request-top { display: flex; align-items: center; gap: 0.9rem; }
+    .request-price { font-family: var(--lx-font-display); font-size: 1.05rem; white-space: nowrap; }
+    .request-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--lx-border); }
+
+    .trip { flex-wrap: wrap; }
+    .trip-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
+    .trip-actions { flex-basis: 100%; display: flex; justify-content: flex-end; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--lx-border); }
+
+    @media (max-width: 1099px) { .cols { grid-template-columns: 1fr; gap: 1.5rem; } }
+    @media (max-width: 640px) {
+      .live-grid { grid-template-columns: 1fr; }
+      .live-inner { padding: 1.15rem; }
+      .live-actions .lx-btn { flex: 1 1 auto; }
+      .request-actions .lx-btn, .trip-actions .lx-btn { flex: 1; }
+    }
+  `]
 })
 export class ChauffeurDashboardComponent implements OnInit {
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
   private confirm = inject(ConfirmService);
-  traitement = signal<number | null>(null);
+
   fcfa = fcfa;
+  traitement = signal<number | null>(null);
+  action = signal<number | null>(null);
+  chargement = signal(true);
   reservationsEnAttente = signal<Reservation[]>([]);
   mesTrajets = signal<Trajet[]>([]);
   portefeuille = signal<Portefeuille | null>(null);
   totalTrajets = signal(0);
   demandesEnAttente = signal(0);
+
+  trajetEnCours = computed(() => this.mesTrajets().find(t => t.statut === 'EN_COURS') ?? null);
+  trajetsAVenir = computed(() => this.mesTrajets()
+    .filter(t => t.statut === 'PLANIFIE' || t.statut === 'EN_COURS')
+    .sort((a, b) => `${a.dateDepart}T${a.heureDepart}`.localeCompare(`${b.dateDepart}T${b.heureDepart}`)));
 
   constructor(
     private auth: AuthService,
@@ -139,25 +214,18 @@ export class ChauffeurDashboardComponent implements OnInit {
 
   ngOnInit() {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u) { this.chargement.set(false); return; }
 
-    const wallet$ = this.walletSvc.get(u.compteId).pipe(
-          shareReplay(1)
-        );
-        wallet$.subscribe({
-          next: w => this.portefeuille.set(w),
-          error: () => {}
-        });
-
+    this.walletSvc.get(u.compteId).subscribe({ next: w => this.portefeuille.set(w), error: () => {} });
     this.chargerDemandes(false);
-    // Nouvelles demandes de réservation détectées toutes les 20 s, avec notification.
+    // Nouvelles demandes détectées toutes les 20 s, avec notification.
     interval(20000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (!document.hidden && !this.traitement()) this.chargerDemandes(true);
     });
     this.trajetSvc.getMesTrajets(u.compteId).subscribe({
-      next: p => { this.mesTrajets.set(p.content); this.totalTrajets.set(p.totalElements); }
+      next: p => { this.mesTrajets.set(p?.content ?? []); this.totalTrajets.set(p?.totalElements ?? 0); },
+      error: () => this.toast.error('Impossible de charger vos trajets')
     });
-    this.walletSvc.get(u.compteId).subscribe({ next: w => this.portefeuille.set(w), error: () => {} });
   }
 
   private chargerDemandes(signaler: boolean) {
@@ -166,16 +234,17 @@ export class ChauffeurDashboardComponent implements OnInit {
     this.rezSvc.getEnAttente(u.compteId).subscribe({
       next: p => {
         const connues = new Set(this.reservationsEnAttente().map(r => r.id));
-        const nouvelles = (p.content ?? []).filter(r => !connues.has(r.id));
-        this.reservationsEnAttente.set(p.content ?? []);
-        this.demandesEnAttente.set(p.totalElements ?? 0);
+        const nouvelles = (p?.content ?? []).filter(r => !connues.has(r.id));
+        this.reservationsEnAttente.set(p?.content ?? []);
+        this.demandesEnAttente.set(p?.totalElements ?? 0);
+        this.chargement.set(false);
         if (signaler && nouvelles.length) {
           const r = nouvelles[0];
           this.toast.info(nouvelles.length > 1 ? `${nouvelles.length} nouvelles demandes de réservation` : 'Nouvelle demande de réservation',
             `${r.villeDepart ?? 'Trajet #' + r.trajetId}${r.villeArrivee ? ' → ' + r.villeArrivee : ''} · ${r.nombrePlaces} place(s)`);
         }
       },
-      error: () => {}
+      error: () => this.chargement.set(false)
     });
   }
 
@@ -183,12 +252,15 @@ export class ChauffeurDashboardComponent implements OnInit {
     const u = this.auth.currentUser();
     if (!u || this.traitement()) return;
     this.traitement.set(r.id);
-    // Le prix de la réservation (prix du trajet / du segment / négocié) fait foi.
+    // Le prix de la réservation (trajet, segment ou négocié) fait foi.
     this.rezSvc.accepter(r.id, u.compteId, Number(r.prixParPlace ?? 0)).subscribe({
       next: maj => {
         this.traitement.set(null);
         this.retirerDemande(r.id);
-        this.toast.success('Réservation acceptée', `${maj.nombrePlaces} place(s) · ${fcfa(maj.montantTotal)} bloqués sur le compte du passager.`);
+        // Les places libres du trajet ont changé.
+        this.mesTrajets.update(arr => arr.map(t => t.id === r.trajetId
+          ? { ...t, placesDisponibles: Math.max(0, t.placesDisponibles - r.nombrePlaces) } : t));
+        this.toast.success('Réservation acceptée', `${maj?.nombrePlaces ?? r.nombrePlaces} place(s) · ${fcfa(maj?.montantTotal ?? r.montantTotal)} bloqués sur le compte du passager.`);
       },
       error: err => { this.traitement.set(null); this.toast.error("Impossible d'accepter", err); }
     });
@@ -215,36 +287,47 @@ export class ChauffeurDashboardComponent implements OnInit {
 
   demarrer(t: Trajet) {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u || this.action()) return;
+    this.action.set(t.id);
     this.trajetSvc.demarrer(t.id, u.compteId).subscribe({
-      next: updated => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x)); this.toast.success('Trajet démarré'); },
-      error: err => this.toast.error('Impossible de démarrer', err)
+      next: updated => { this.action.set(null); this.remplacer(t.id, updated ?? { ...t, statut: 'EN_COURS' }); this.toast.success('Trajet démarré'); },
+      error: err => { this.action.set(null); this.toast.error('Impossible de démarrer', err); }
     });
   }
 
-  terminer(t: Trajet) {
+  async terminer(t: Trajet) {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u || this.action()) return;
+    const ok = await this.confirm.ask({ title: 'Terminer ce trajet ?', message: `${t.villeDepart} → ${t.villeArrivee} sera marqué comme terminé.`,
+      confirmLabel: 'Terminer', cancelLabel: 'Retour' });
+    if (!ok) return;
+    this.action.set(t.id);
     this.trajetSvc.terminer(t.id, u.compteId).subscribe({
-      next: updated => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x)); this.toast.success('Trajet terminé'); },
-      error: err => this.toast.error('Impossible de terminer', err)
+      next: updated => { this.action.set(null); this.remplacer(t.id, updated ?? { ...t, statut: 'TERMINE' }); this.toast.success('Trajet terminé'); },
+      error: err => { this.action.set(null); this.toast.error('Impossible de terminer', err); }
     });
   }
 
   async annuler(t: Trajet) {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u || this.action()) return;
     const ok = await this.confirm.ask({ title: `Annuler ${t.villeDepart} → ${t.villeArrivee} ?`,
       message: 'Les passagers seront prévenus et intégralement remboursés.', confirmLabel: 'Annuler le trajet', cancelLabel: 'Retour', danger: true });
     if (!ok) return;
+    this.action.set(t.id);
     this.trajetSvc.annuler(t.id, u.compteId).subscribe({
-      next: () => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? {...x, statut: 'ANNULE' as any} : x)); this.toast.success('Trajet annulé'); },
-      error: err => this.toast.error("Impossible d'annuler", err)
+      next: () => { this.action.set(null); this.remplacer(t.id, { ...t, statut: 'ANNULE' }); this.toast.success('Trajet annulé'); },
+      error: err => { this.action.set(null); this.toast.error("Impossible d'annuler", err); }
     });
   }
 
-  getBadgeTrajet(s: string) {
-    return { 'PLANIFIE': 'badge badge-info', 'EN_COURS': 'badge badge-success',
-      'TERMINE': 'badge badge-muted', 'ANNULE': 'badge badge-danger' }[s] || 'badge badge-muted';
+  private remplacer(id: number, t: Trajet) {
+    this.mesTrajets.update(arr => arr.map(x => x.id === id ? t : x));
+  }
+
+  libelleTrajet(s: string) { return LIBELLES_TRAJET[s] ?? s; }
+
+  badgeTrajet(s: string) {
+    return ({ PLANIFIE: 'lx-badge-info', EN_COURS: 'lx-badge-gold', TERMINE: 'lx-badge-success', ANNULE: 'lx-badge-danger' } as Record<string, string>)[s] ?? '';
   }
 }

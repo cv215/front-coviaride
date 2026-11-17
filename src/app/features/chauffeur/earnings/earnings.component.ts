@@ -1,140 +1,181 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ToastService, fcfa, messageErreur } from '../../../core/services/toast.service';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
 import { Portefeuille, Transaction } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-earnings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, IconComponent],
   template: `
-<div>
-  <h2 style="margin-bottom:0.5rem">Mes revenus</h2>
-  <p style="margin-bottom:2rem">Gérez votre portefeuille et vos retraits</p>
-
-  @if (wallet()) {
-    <div class="stats-grid" style="margin-bottom:2rem">
-      <div class="stat-card" style="background:var(--color-primary);border-color:var(--color-primary)">
-        <div class="stat-info">
-          <div class="value" style="color:white">{{ wallet()!.soldeDisponible | number:'1.0-0':'fr' }}</div>
-          <div class="label" style="color:rgba(255,255,255,0.7)">Solde disponible (XAF)</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ wallet()!.soldeBloque | number:'1.0-0':'fr' }}</div>
-          <div class="label">Fonds bloqués (XAF)</div>
-        </div>
-      </div>
+<div class="lx-page">
+  <div class="lx-page-head">
+    <div>
+      <span class="lx-eyebrow">Revenus</span>
+      <h2>Votre portefeuille</h2>
+      <p>Les paiements des passagers sont versés à l'embarquement puis à l'arrivée.</p>
     </div>
+    <button class="lx-btn lx-btn-secondary" (click)="charger()"><lx-icon name="refresh" /> Actualiser</button>
+  </div>
+
+  <div class="balances">
+    <section class="lx-card lx-card-glow balance">
+      <div class="lx-row" style="justify-content:space-between">
+        <span class="lx-mono brand">COVIARIDE · CHAUFFEUR</span>
+        <span class="lx-icon-tile is-gold"><lx-icon name="wallet" /></span>
+      </div>
+      <div class="lx-muted" style="font-size:.8rem;margin-top:1.25rem">Solde disponible</div>
+      <div class="amount lx-display">{{ (wallet()?.soldeDisponible ?? 0) | number:'1.0-0' }} <span>FCFA</span></div>
+    </section>
+    <section class="lx-stat">
+      <lx-icon name="lock" style="color:var(--lx-amber)" />
+      <div class="lx-stat-value">{{ (wallet()?.soldeBloque ?? 0) | number:'1.0-0' }} F</div>
+      <div class="lx-stat-label">fonds bloqués · en attente de versement</div>
+    </section>
+    <section class="lx-stat">
+      <lx-icon name="arrow-down-left" style="color:var(--lx-emerald)" />
+      <div class="lx-stat-value">{{ totalRecu() | number:'1.0-0' }} F</div>
+      <div class="lx-stat-label">paiements reçus · total</div>
+    </section>
+  </div>
+
+  <nav class="lx-tabs" role="tablist" style="margin-top:1.5rem">
+    <button role="tab" class="lx-tab" [class.is-active]="mode() === 'retrait'" (click)="mode.set('retrait')">Retirer</button>
+    <button role="tab" class="lx-tab" [class.is-active]="mode() === 'depot'" (click)="mode.set('depot')">Déposer</button>
+  </nav>
+
+  @if (mode() === 'retrait') {
+    <form class="lx-card lx-stack" [formGroup]="retraitForm" (ngSubmit)="retirer()">
+      <div>
+        <h3 class="lx-card-title" style="margin-bottom:.25rem">Retirer mes gains</h3>
+        <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · validation par code envoyé par email.</p>
+      </div>
+      <div>
+        <span class="lx-label">Opérateur</span>
+        <div class="operators">
+          <button type="button" class="op" [class.is-active]="retraitForm.value.moyen === 'MTN_MOMO'" (click)="retraitForm.patchValue({ moyen: 'MTN_MOMO' })"><span class="op-logo mtn">MTN</span>MTN MoMo</button>
+          <button type="button" class="op" [class.is-active]="retraitForm.value.moyen === 'ORANGE_MONEY'" (click)="retraitForm.patchValue({ moyen: 'ORANGE_MONEY' })"><span class="op-logo orange">OM</span>Orange Money</button>
+        </div>
+      </div>
+      <div class="lx-form-grid">
+        <div>
+          <label class="lx-label" for="e-tel">Numéro de téléphone</label>
+          <div class="lx-field has-icon"><span class="lx-field-icon"><lx-icon name="smartphone" /></span>
+            <input id="e-tel" class="lx-input lx-mono" type="tel" inputmode="numeric" formControlName="numeroTelephone" placeholder="650000000" /></div>
+        </div>
+        <div>
+          <label class="lx-label" for="e-montant">Montant (FCFA)</label>
+          <input id="e-montant" class="lx-input lx-mono" type="number" min="1000" formControlName="montant" placeholder="10 000" />
+        </div>
+      </div>
+      @if (depasseSolde()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> Montant supérieur à votre solde disponible.</div> }
+
+      @if (retraitCodeRecu()) {
+        <div [formGroup]="retraitValidationForm">
+          <label class="lx-label" for="e-code">Code reçu par email</label>
+          <input id="e-code" class="lx-input lx-mono" formControlName="codeValidation" inputmode="numeric" maxlength="6" placeholder="6 chiffres" autocomplete="one-time-code" />
+        </div>
+      }
+      @if (retraitError()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ retraitError() }}</div> }
+      @if (retraitSuccess()) { <div class="lx-alert lx-alert-success"><lx-icon name="mail" /> {{ retraitSuccess() }}</div> }
+
+      @if (!retraitCodeRecu()) {
+        <button type="button" class="lx-btn lx-btn-primary lx-btn-block" (click)="demanderCodeValidation()"
+          [disabled]="retraitCodeLoading() || retraitForm.invalid || depasseSolde()">
+          <lx-icon name="mail" /> {{ retraitCodeLoading() ? 'Envoi du code…' : 'Recevoir le code de validation' }}
+        </button>
+      } @else {
+        <div class="form-actions">
+          <button type="button" class="lx-btn lx-btn-ghost" (click)="retraitCodeRecu.set(false); retraitSuccess.set('')">Retour</button>
+          <button type="submit" class="lx-btn lx-btn-primary" [disabled]="retraitLoading() || retraitForm.invalid || retraitValidationForm.invalid || depasseSolde()">
+            {{ retraitLoading() ? 'Traitement…' : 'Confirmer le retrait' }}
+          </button>
+        </div>
+      }
+    </form>
+  } @else {
+    <form class="lx-card lx-stack" [formGroup]="depotForm" (ngSubmit)="deposer()">
+      <div>
+        <h3 class="lx-card-title" style="margin-bottom:.25rem">Déposer des fonds</h3>
+        <p style="margin:0;font-size:.8rem">Minimum 500 FCFA · aucune commission.</p>
+      </div>
+      <div>
+        <span class="lx-label">Opérateur</span>
+        <div class="operators">
+          <button type="button" class="op" [class.is-active]="depotForm.value.moyen === 'MTN_MOMO'" (click)="depotForm.patchValue({ moyen: 'MTN_MOMO' })"><span class="op-logo mtn">MTN</span>MTN MoMo</button>
+          <button type="button" class="op" [class.is-active]="depotForm.value.moyen === 'ORANGE_MONEY'" (click)="depotForm.patchValue({ moyen: 'ORANGE_MONEY' })"><span class="op-logo orange">OM</span>Orange Money</button>
+        </div>
+      </div>
+      <div class="lx-form-grid">
+        <div>
+          <label class="lx-label" for="d-tel">Numéro de téléphone</label>
+          <div class="lx-field has-icon"><span class="lx-field-icon"><lx-icon name="smartphone" /></span>
+            <input id="d-tel" class="lx-input lx-mono" type="tel" inputmode="numeric" formControlName="numeroTelephone" placeholder="650000000" /></div>
+        </div>
+        <div>
+          <label class="lx-label" for="d-montant">Montant (FCFA)</label>
+          <input id="d-montant" class="lx-input lx-mono" type="number" min="500" formControlName="montant" placeholder="5 000" />
+        </div>
+      </div>
+      @if (depotError()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ depotError() }}</div> }
+      <button type="submit" class="lx-btn lx-btn-primary lx-btn-block" [disabled]="depotLoading() || depotForm.invalid">
+        {{ depotLoading() ? 'Traitement…' : 'Confirmer le dépôt' }}
+      </button>
+    </form>
   }
 
-  <div class="two-col-grid" style="gap:1.5rem">
-    <!-- RETRAIT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem">Retirer des fonds</h3>
-      <form [formGroup]="retraitForm" (ngSubmit)="retirer()">
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Méthode de retrait</label>
-          <select class="field" formControlName="moyen">
-            <option value="MTN_MOMO">MTN Mobile Money</option>
-            <option value="ORANGE_MONEY">Orange Money</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Numéro de téléphone</label>
-          <input type="tel" class="field" formControlName="numeroTelephone" placeholder="6XXXXXXXX"/>
-        </div>
-        <div class="form-group" style="margin-bottom:1.5rem">
-          <label>Montant (XAF)</label>
-          <input type="number" class="field" formControlName="montant" placeholder="minimum 1 000" min="1000"/>
-        </div>
-        @if (retraitForm.value.montant && wallet() && retraitForm.value.montant > wallet()!.soldeDisponible) {
-          <div class="alert alert-error" style="margin-bottom:1rem">Montant supérieur à votre solde disponible.</div>
-        }
-        @if (retraitError()) { <div class="alert alert-error" style="margin-bottom:1rem">{{ retraitError() }}</div> }
-        @if (retraitSuccess()) { <div class="alert alert-success" style="margin-bottom:1rem">{{ retraitSuccess() }}</div> }
-
-        @if (!retraitCodeRecu()) {
-          <button type="button" class="btn btn-primary btn-full" (click)="demanderCodeValidation()"
-                  [disabled]="retraitCodeLoading() || retraitForm.invalid || depasseSolde()">
-            {{ retraitCodeLoading() ? 'Envoi du code…' : '1. Recevoir un code par email' }}
-          </button>
-        } @else {
-          <div class="form-group" [formGroup]="retraitValidationForm" style="margin-bottom:1rem">
-            <label>Code reçu par email</label>
-            <input type="text" class="field" formControlName="codeValidation" inputmode="numeric" maxlength="6" placeholder="6 chiffres" autocomplete="one-time-code"/>
-          </div>
-          <div style="display:flex;gap:.5rem">
-            <button type="button" class="btn btn-outline" (click)="retraitCodeRecu.set(false)">Retour</button>
-            <button type="submit" class="btn btn-primary" style="flex:1" [disabled]="retraitLoading() || retraitForm.invalid || retraitValidationForm.invalid">
-              {{ retraitLoading() ? 'Traitement…' : '2. Confirmer le retrait' }}
-            </button>
-          </div>
-        }
-      </form>
-    </div>
-
-    <!-- DÉPÔT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem">Déposer des fonds</h3>
-      <form [formGroup]="depotForm" (ngSubmit)="deposer()">
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Méthode de dépôt</label>
-          <select class="field" formControlName="moyen">
-            <option value="MTN_MOMO">MTN Mobile Money</option>
-            <option value="ORANGE_MONEY">Orange Money</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label>Numéro de téléphone</label>
-          <input type="tel" class="field" formControlName="numeroTelephone" placeholder="6XXXXXXXX"/>
-        </div>
-        <div class="form-group" style="margin-bottom:1.5rem">
-          <label>Montant (XAF)</label>
-          <input type="number" class="field" formControlName="montant" placeholder="minimum 500" min="500"/>
-        </div>
-        @if (depotError()) { <div class="alert alert-error" style="margin-bottom:1rem">{{ depotError() }}</div> }
-        @if (depotSuccess()) { <div class="alert alert-success" style="margin-bottom:1rem">{{ depotSuccess() }}</div> }
-        <button type="submit" class="btn btn-success btn-full" [disabled]="depotLoading() || depotForm.invalid">
-          {{ depotLoading() ? 'Traitement...' : 'Déposer les fonds' }}
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:1.5rem;padding:0;overflow:hidden">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--color-border)">
-      <h3 style="margin:0">Derniers mouvements</h3>
-      <button class="btn btn-outline btn-sm" (click)="charger()">⟳ Actualiser</button>
-    </div>
+  <section style="margin-top:2rem">
+    <div class="lx-section-head"><h3>Derniers mouvements</h3></div>
     @if (transactions().length === 0) {
-      <p style="padding:1.5rem;text-align:center;margin:0">Aucun mouvement pour le moment.</p>
+      <div class="lx-empty"><lx-icon name="receipt" /><p>Aucun mouvement pour le moment.</p></div>
     } @else {
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Opération</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead>
-        <tbody>
-          @for (t of transactions(); track t.id) {
-            <tr>
-              <td style="white-space:nowrap">{{ t.timestamp | date:'dd/MM HH:mm' }}</td>
-              <td>
-                <div style="font-weight:600">{{ libelleType(t.type) }}</div>
-                <div style="font-size:.78rem;color:var(--color-muted)">{{ t.description }}</div>
-              </td>
-              <td><span class="badge" [class]="t.statut === 'EFFECTUEE' ? 'badge badge-success' : t.statut === 'EN_ATTENTE' ? 'badge badge-warning' : 'badge badge-danger'">{{ t.statut === 'EFFECTUEE' ? 'Effectuée' : t.statut === 'EN_ATTENTE' ? 'En attente' : t.statut }}</span></td>
-              <td style="text-align:right;font-weight:700;white-space:nowrap" [style.color]="estCredit(t.type) ? 'var(--color-success)' : 'var(--color-primary)'">
-                {{ estCredit(t.type) ? '+' : '−' }}{{ t.montant | number:'1.0-0':'fr' }} FCFA
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <div class="lx-list">
+        @for (t of transactions(); track t.id) {
+          <div class="lx-list-item" style="cursor:default">
+            <span class="lx-icon-tile" [class.is-in]="estCredit(t.type)" [class.is-out]="!estCredit(t.type)">
+              <lx-icon [name]="estCredit(t.type) ? 'arrow-down-left' : 'arrow-up-right'" [size]="18" />
+            </span>
+            <span class="lx-list-body">
+              <span class="lx-list-title">{{ libelleType(t.type) }}</span>
+              <span class="lx-list-sub">{{ t.timestamp | date:'dd/MM/yyyy HH:mm' }}@if (t.description) { · {{ t.description }} }</span>
+            </span>
+            <span class="tx-right">
+              <span class="tx-amount" [class.in]="estCredit(t.type)">{{ estCredit(t.type) ? '+' : '−' }} {{ t.montant | number:'1.0-0' }} FCFA</span>
+              <span class="lx-badge" [ngClass]="t.statut === 'EFFECTUEE' ? 'lx-badge-success' : t.statut === 'EN_ATTENTE' ? 'lx-badge-warning' : 'lx-badge-danger'">
+                {{ t.statut === 'EFFECTUEE' ? 'Effectuée' : t.statut === 'EN_ATTENTE' ? 'En attente' : t.statut }}
+              </span>
+            </span>
+          </div>
+        }
+      </div>
     }
-  </div>
-</div>`
+  </section>
+</div>`,
+  styles: [`
+    :host { display: block; }
+    .balances { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .balance { padding: 1.4rem; }
+    .brand { font-size: 0.68rem; letter-spacing: 0.18em; color: var(--lx-primary); }
+    .amount { font-size: clamp(1.9rem, 5vw, 2.5rem); line-height: 1.1; span { font-family: var(--lx-font-body); font-size: 0.9rem; color: var(--lx-muted-fg); } }
+    .lx-stat .lx-stat-value { font-size: 1.3rem; }
+    .operators { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .op { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; cursor: pointer; background: var(--lx-secondary); color: var(--lx-fg);
+      border: 1px solid transparent; border-radius: var(--lx-r-md); font-size: 0.85rem; font-weight: 500; text-align: left;
+      &:hover { background: #232736; } &.is-active { border-color: rgba(200, 146, 42, 0.55); background: rgba(200, 146, 42, 0.08); } }
+    .op-logo { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.68rem; flex-shrink: 0;
+      &.mtn { background: #ffc300; color: #111; } &.orange { background: #ff6b00; color: #fff; } }
+    .form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+    .lx-icon-tile.is-in { background: rgba(52, 211, 153, 0.12); color: var(--lx-emerald); }
+    .lx-icon-tile.is-out { background: rgba(224, 83, 74, 0.12); color: var(--lx-red); }
+    .tx-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
+    .tx-amount { font-family: var(--lx-font-mono); font-size: 0.85rem; white-space: nowrap; &.in { color: var(--lx-emerald); } }
+    @media (max-width: 900px) { .balances { grid-template-columns: repeat(2, minmax(0, 1fr)); } .balance { grid-column: 1 / -1; } }
+    @media (max-width: 480px) { .operators { grid-template-columns: 1fr; } .form-actions .lx-btn { flex: 1; } }
+  `]
 })
 export class EarningsComponent implements OnInit {
   wallet = signal<Portefeuille | null>(null);
@@ -162,6 +203,10 @@ export class EarningsComponent implements OnInit {
   constructor(private fb: FormBuilder, private auth: AuthService, private walletSvc: PortefeuilleService) {}
 
   transactions = signal<Transaction[]>([]);
+  mode = signal<'retrait' | 'depot'>('retrait');
+  totalRecu = computed(() => this.transactions()
+    .filter(t => t.statut === 'EFFECTUEE' && ['RECEPTION_PAIEMENT', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE'].includes(t.type))
+    .reduce((s, t) => s + Number(t.montant ?? 0), 0));
   private toast = inject(ToastService);
 
   ngOnInit() {
@@ -182,7 +227,8 @@ export class EarningsComponent implements OnInit {
   }
 
   estCredit(type: string) {
-    return ['DEPOT', 'RECEPTION_PAIEMENT', 'REMBOURSEMENT', 'COMMISSION_PLATEFORME'].includes(type);
+    // La commission est prélevée sur le chauffeur : c'est un débit, pas un crédit.
+    return ['DEPOT', 'RECEPTION_PAIEMENT', 'REMBOURSEMENT', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE'].includes(type);
   }
 
   libelleType(type: string) {

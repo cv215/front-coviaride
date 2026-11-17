@@ -1,287 +1,200 @@
-import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AdminService } from '../../../core/services/admin.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { DashboardAdmin } from '../../../core/models';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
+
+interface Barre { semaine: string; courses: number; pourcentage: number; }
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
-<div>
-  <div style="margin-bottom:2rem;display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
+<div class="dash">
+  <div class="lx-page-head" style="margin-bottom:0">
     <div>
-      <h2>Dashboard Administration</h2>
-      <p>Vue d'ensemble de la plateforme CoviaRide
-        @if (derniereMaj()) { · mis à jour à {{ derniereMaj() | date:'HH:mm:ss' }} }
-      </p>
+      <span class="lx-eyebrow">Administration</span>
+      <h2>Activité de la plateforme</h2>
+      <p>@if (derniereMaj()) { Mis à jour à {{ derniereMaj() | date:'HH:mm:ss' }} · actualisation automatique chaque minute } @else { Chargement… }</p>
     </div>
-    <button class="btn btn-outline btn-sm" (click)="charger(true)" [disabled]="rafraichissement()">
-      {{ rafraichissement() ? 'Actualisation…' : '⟳ Actualiser' }}
+    <button class="lx-btn lx-btn-secondary" (click)="charger(true)" [disabled]="rafraichissement()">
+      <lx-icon name="refresh" [class.lx-spin]="rafraichissement()" /> Actualiser
     </button>
   </div>
 
   @if (loading()) {
-    <div style="text-align:center;padding:3rem;color:var(--color-muted)">Chargement des statistiques...</div>
-  } @else if (errorMessage()) {
-    <div class="card" style="border-left:4px solid var(--color-danger)">
-      <h3 style="margin-bottom:0.5rem">Tableau de bord indisponible</h3>
-      <p style="margin:0 0 1rem;color:var(--color-muted)">{{ errorMessage() }}</p>
-      <button class="btn btn-primary btn-sm" (click)="charger(true)">Réessayer</button>
+    <div class="lx-stats">@for (i of [1,2,3,4]; track i) { <div class="lx-skeleton" style="min-height:110px"></div> }</div>
+    <div class="lx-skeleton" style="min-height:260px"></div>
+  } @else if (errorMessage() && !stats()) {
+    <div class="lx-empty">
+      <lx-icon name="alert" />
+      <p>{{ errorMessage() }}</p>
+      <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="charger(true)">Réessayer</button>
     </div>
-  } @else if (stats()) {
-    @if (isSuperAdmin()) {
-      <!-- SUPER ADMIN SECTION -->
-      <div class="super-admin-section" style="margin-bottom:2rem;padding:1.5rem;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:var(--radius-md);color:white">
-        <h3 style="margin-bottom:1.5rem;font-size:1.25rem">🎯 Dashboard Super Admin</h3>
-        
-        <div class="stats-grid" style="margin-bottom:2rem">
-          <!-- Chauffeurs -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.totalChauffeurs ?? stats()?.totalConducteurs ?? 0 | number }}</div>
-              <div class="label">Chauffeurs inscrits</div>
-              <div class="sub-label">Conducteurs actifs</div>
-            </div>
-          </div>
+  } @else if (stats(); as s) {
+    @if (errorMessage()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ errorMessage() }}</div> }
 
-          <!-- Passagers -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.totalPassagers ?? 0 | number }}</div>
-              <div class="label">Passagers inscrits</div>
-              <div class="sub-label">Usagers actifs</div>
-            </div>
-          </div>
+    <!-- Indicateurs principaux -->
+    <section class="lx-stats lx-rise">
+      <div class="lx-stat">
+        <lx-icon name="users" style="color:var(--lx-primary)" />
+        <div class="lx-stat-value">{{ s.totalUtilisateurs | number }}</div>
+        <div class="lx-stat-label">utilisateurs · {{ s.inscritsSemaine ?? 0 }} cette semaine</div>
+      </div>
+      <div class="lx-stat">
+        <lx-icon name="car" style="color:var(--lx-blue)" />
+        <div class="lx-stat-value">{{ chauffeurs(s) | number }}</div>
+        <div class="lx-stat-label">chauffeurs · inscrits</div>
+      </div>
+      <div class="lx-stat">
+        <lx-icon name="user" style="color:var(--lx-emerald)" />
+        <div class="lx-stat-value">{{ s.totalPassagers | number }}</div>
+        <div class="lx-stat-label">passagers · inscrits</div>
+      </div>
+      <div class="lx-stat">
+        <lx-icon name="wallet" style="color:var(--lx-amber)" />
+        <div class="lx-stat-value">{{ s.revenusPlateforme | number:'1.0-0' }} F</div>
+        <div class="lx-stat-label">revenus · plateforme</div>
+      </div>
+    </section>
 
-          <!-- Courses en cours -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.trajetsEnCours ?? 0 | number }}</div>
-              <div class="label">Courses en cours</div>
-              <div class="sub-label">En route</div>
-            </div>
-          </div>
-
-          <!-- Courses terminées -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.trajetsTermines ?? 0 | number }}</div>
-              <div class="label">Courses terminées</div>
-              <div class="sub-label">Complétées</div>
-            </div>
-          </div>
-
-          <!-- Actifs 30 jours -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.utilisateursActifs30J ?? 0 | number }}</div>
-              <div class="label">Personnes actives / 30j</div>
-              <div class="sub-label">Utilisateurs engagés</div>
-            </div>
-          </div>
-
-          <!-- Inactifs 30 jours -->
-          <div class="stat-card super-admin-card">
-            <div class="stat-info">
-              <div class="value">{{ stats()?.utilisateursInactifs30J ?? 0 | number }}</div>
-              <div class="label">Personnes inactives / 30j</div>
-              <div class="sub-label">Sans activité</div>
-            </div>
-          </div>
+    <div class="cols">
+      <!-- Activité hebdomadaire -->
+      <section class="lx-card lx-rise lx-rise-1">
+        <div class="lx-section-head">
+          <h3>Courses des 4 dernières semaines</h3>
+          <span class="lx-muted" style="font-size:.75rem">% terminées</span>
         </div>
-
-        <!-- Graphique hebdomadaire -->
-        @if (weeklyStats()) {
-          <div class="weekly-chart" style="background:rgba(255,255,255,0.1);padding:1.5rem;border-radius:var(--radius-md);backdrop-filter:blur(10px)">
-            <h4 style="margin-bottom:1rem;color:white">Activité hebdomadaire (% de completion)</h4>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:1rem;align-items:flex-end">
-              @for (item of getChartData(); track item.week) {
-                <div style="text-align:center">
-                  <div style="position:relative;height:150px;background:rgba(255,255,255,0.2);border-radius:4px;margin-bottom:0.5rem;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden">
-                    <div [style.height.%]="item.percentage" style="background:linear-gradient(to top, #4ade80, #22c55e);border-radius:4px 4px 0 0;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;transition:all 0.3s">
-                      @if (item.percentage > 15) {
-                        <span style="font-size:0.75rem">{{ item.percentage | number:'1.0-0' }}%</span>
-                      }
-                    </div>
-                  </div>
-                  <div style="font-size:0.8rem;color:rgba(255,255,255,0.9);font-weight:600">{{ item.week }}</div>
-                  <div style="font-size:0.7rem;color:rgba(255,255,255,0.7)">{{ item.courses }} courses</div>
-                </div>
-              }
-            </div>
+        @if (barres().length) {
+          <div class="chart" role="img" [attr.aria-label]="resumeGraphique()">
+            @for (b of barres(); track b.semaine) {
+              <div class="bar-col">
+                <span class="bar-value lx-mono">{{ b.courses }}</span>
+                <div class="bar-track"><div class="bar-fill" [style.height.%]="hauteur(b.courses)"></div></div>
+                <span class="bar-pct" [class.good]="b.pourcentage >= 70">{{ b.pourcentage }} %</span>
+                <span class="bar-label">{{ b.semaine }}</span>
+              </div>
+            }
           </div>
+        } @else {
+          <div class="lx-empty" style="border:0;padding:2rem 0"><lx-icon name="gauge" /><p>Pas encore de données hebdomadaires.</p></div>
         }
-      </div>
-    }
+        <div class="chart-foot">
+          <div><span class="lx-display">{{ s.trajetsEnCours | number }}</span><span class="lx-muted">courses en cours</span></div>
+          <div><span class="lx-display">{{ s.trajetsTermines | number }}</span><span class="lx-muted">courses terminées</span></div>
+          <div><span class="lx-display">{{ s.totalTrajets | number }}</span><span class="lx-muted">trajets publiés</span></div>
+        </div>
+      </section>
 
-    <!-- STATS COMMUNES -->
-    <div class="stats-grid" style="margin-bottom:2rem">
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()?.inscritsSemaine ?? 0 | number }}</div>
-          <div class="label">Nouveaux inscrits / 7j</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()?.totalChauffeurs ?? stats()?.totalConducteurs ?? 0 | number }}</div>
-          <div class="label">Total chauffeurs</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()?.totalPassagers ?? 0 | number }}</div>
-          <div class="label">Total passagers</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()?.signalementsEnCours ?? stats()?.signalementsOuverts ?? stats()?.signalements ?? 0 | number }}</div>
-          <div class="label">Cas en cours</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.signalementsSemaine ?? 0 | number }}</div>
-          <div class="label">Cas traités / 7j</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.utilisateursActifs30J ?? 0 | number }}</div>
-          <div class="label">Personnes actives / 30j</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.utilisateursInactifs30J ?? 0 | number }}</div>
-          <div class="label">Personnes inactives / 30j</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.totalUtilisateurs | number }}</div>
-          <div class="label">Utilisateurs total</div>
-        </div>
-      </div>
+      <!-- À traiter -->
+      <section class="lx-stack-sm lx-rise lx-rise-2">
+        <a routerLink="/admin/signalements" class="todo">
+          <span class="lx-icon-tile is-warn"><lx-icon name="alert" /></span>
+          <span class="lx-list-body">
+            <span class="todo-value lx-display">{{ signalements(s) }}</span>
+            <span class="lx-list-sub">signalement(s) à traiter</span>
+          </span>
+          <lx-icon name="chevron-right" class="lx-chevron" />
+        </a>
+        <a routerLink="/admin/kyc" class="todo">
+          <span class="lx-icon-tile is-gold"><lx-icon name="shield-check" /></span>
+          <span class="lx-list-body">
+            <span class="todo-value lx-display">KYC</span>
+            <span class="lx-list-sub">vérifier les chauffeurs</span>
+          </span>
+          <lx-icon name="chevron-right" class="lx-chevron" />
+        </a>
+        <a routerLink="/admin/remboursements" class="todo">
+          <span class="lx-icon-tile"><lx-icon name="rotate-ccw" /></span>
+          <span class="lx-list-body">
+            <span class="todo-value lx-display">Remboursements</span>
+            <span class="lx-list-sub">demandes des passagers</span>
+          </span>
+          <lx-icon name="chevron-right" class="lx-chevron" />
+        </a>
+        <a routerLink="/admin/commissions" class="todo">
+          <span class="lx-icon-tile is-ok"><lx-icon name="tag" /></span>
+          <span class="lx-list-body">
+            <span class="todo-value lx-display">{{ s.totalCommissions | number:'1.0-0' }} F</span>
+            <span class="lx-list-sub">commissions perçues</span>
+          </span>
+          <lx-icon name="chevron-right" class="lx-chevron" />
+        </a>
+      </section>
     </div>
 
-    <div class="admin-summary-grid" style="margin-bottom:2rem">
-      <div class="card" style="border-left:4px solid var(--color-warning)">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-          <div>
-            <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-warning);margin-bottom:0.25rem">Signalements</div>
-            <div style="font-size:2rem;font-weight:800">{{ stats()?.signalementsOuverts ?? stats()?.signalementsEnCours ?? stats()?.signalements ?? 0 }}</div>
-            <div style="font-size:0.85rem;color:var(--color-muted)">En attente de traitement</div>
-          </div>
-          <a routerLink="/admin/signalements" class="btn btn-outline btn-sm">Traiter →</a>
-        </div>
+    <!-- Mois en cours -->
+    <section class="lx-rise lx-rise-3">
+      <div class="lx-section-head"><h3>Ce mois-ci</h3></div>
+      <div class="month">
+        <div><span class="lx-display">{{ s.activiteMois?.trajetsCrees ?? 0 | number }}</span><span>trajets créés</span></div>
+        <div><span class="lx-display">{{ s.activiteMois?.trajetsTermines ?? 0 | number }}</span><span>courses terminées</span></div>
+        <div><span class="lx-display">{{ s.activiteMois?.nouveauxUtilisateurs ?? 0 | number }}</span><span>nouveaux profils</span></div>
+        <div><span class="lx-display">{{ s.utilisateursActifs30J ?? s.activiteMois?.utilisateursActifs ?? 0 | number }}</span><span>actifs sur 30 j</span></div>
+        <div><span class="lx-display">{{ s.utilisateursInactifs30J ?? s.activiteMois?.utilisateursInactifs ?? 0 | number }}</span><span>inactifs sur 30 j</span></div>
+        <div><span class="lx-display">{{ s.signalementsSemaine ?? 0 | number }}</span><span>cas traités sur 7 j</span></div>
       </div>
-
-      <div class="card" style="border-left:4px solid var(--color-success)">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-          <div>
-            <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-success);margin-bottom:0.25rem">Revenus plateforme</div>
-            <div style="font-size:2rem;font-weight:800">{{ stats()!.revenusPlateforme | number:'1.0-0' }} XAF</div>
-            <div style="font-size:0.85rem;color:var(--color-muted)">Total transactions</div>
-          </div>
-          <a routerLink="/admin/commissions" class="btn btn-outline btn-sm">Détails →</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:2rem">
-      <h3 style="margin-bottom:1rem">Récapitulatif d’activité du mois</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <div class="value">{{ stats()!.activiteMois?.trajetsCrees ?? 0 | number }}</div>
-            <div class="label">Trajets créés</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-info">
-            <div class="value">{{ stats()!.activiteMois?.trajetsTermines ?? 0 | number }}</div>
-            <div class="label">Courses terminées</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-info">
-            <div class="value">{{ stats()!.activiteMois?.nouveauxUtilisateurs ?? 0 | number }}</div>
-            <div class="label">Nouveaux profils</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-info">
-            <div class="value">{{ stats()!.activiteMois?.utilisateursActifs ?? 0 | number }}</div>
-            <div class="label">Utilisateurs actifs</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem">Actions rapides</h3>
-      <div class="admin-quick-actions">
-        <a routerLink="/admin/utilisateurs" class="quick-action">
-          <div class="qa-icon" style="background:#EDE9FE">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" style="width:20px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          </div>
-          <span>Gérer utilisateurs</span>
-        </a>
-        <a routerLink="/admin/kyc" class="quick-action">
-          <div class="qa-icon" style="background:#D1FAE5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#065F46" stroke-width="2" style="width:20px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <span>Valider KYC</span>
-        </a>
-        <a routerLink="/admin/signalements" class="quick-action">
-          <div class="qa-icon" style="background:#FEF3C7">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" style="width:20px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <span>Signalements</span>
-        </a>
-        <a routerLink="/admin/commissions" class="quick-action">
-          <div class="qa-icon" style="background:#DBEAFE">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#1E40AF" stroke-width="2" style="width:20px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <span>Commissions</span>
-        </a>
-      </div>
-    </div>
+    </section>
   }
 </div>`,
   styles: [`
-    .quick-action { display:flex;flex-direction:column;align-items:center;gap:0.75rem;
-      padding:1.25rem;border:1px solid var(--color-border);border-radius:var(--radius-md);
-      text-decoration:none;color:var(--color-primary);font-weight:500;font-size:0.875rem;
-      transition:all 0.15s;text-align:center;
-      &:hover { background:var(--color-bg);transform:translateY(-2px);box-shadow:var(--shadow-md); }
-    }
-    .qa-icon { width:44px;height:44px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center; }
+    :host { display: block; }
+    .dash { display: flex; flex-direction: column; gap: 1.75rem; }
+    .cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+
+    .chart { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; align-items: end; height: 230px; padding-top: 0.5rem; }
+    .bar-col { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; height: 100%; min-width: 0; }
+    .bar-track { flex: 1; width: 100%; max-width: 56px; background: var(--lx-secondary); border-radius: 8px; display: flex; align-items: flex-end; overflow: hidden; }
+    .bar-fill { width: 100%; background: linear-gradient(to top, rgba(200, 146, 42, 0.55), var(--lx-primary)); border-radius: 8px 8px 0 0; transition: height 0.5s; min-height: 4px; }
+    .bar-value { font-size: 0.8rem; }
+    .bar-pct { font-size: 0.72rem; color: var(--lx-muted-fg); &.good { color: var(--lx-emerald); } }
+    .bar-label { font-size: 0.72rem; color: var(--lx-muted-fg); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .chart-foot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--lx-border);
+      > div { display: flex; flex-direction: column; } .lx-display { font-size: 1.4rem; } .lx-muted { font-size: 0.72rem; } }
+
+    .todo { display: flex; align-items: center; gap: 0.9rem; padding: 1rem 1.15rem; text-decoration: none; color: inherit;
+      background: var(--lx-card); border: 1px solid var(--lx-border); border-radius: var(--lx-r-lg); transition: border-color 0.2s;
+      &:hover { border-color: rgba(200, 146, 42, 0.35); } }
+    .todo-value { font-size: 1.2rem; line-height: 1.2; }
+    .lx-icon-tile.is-warn { background: rgba(251, 191, 36, 0.12); color: var(--lx-amber); }
+    .lx-icon-tile.is-ok { background: rgba(52, 211, 153, 0.12); color: var(--lx-emerald); }
+
+    .month { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem;
+      > div { background: var(--lx-card); border: 1px solid var(--lx-border); border-radius: var(--lx-r-lg); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+      .lx-display { font-size: 1.4rem; } span:last-child { font-size: 0.72rem; color: var(--lx-muted-fg); } }
+
+    @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } .month { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .month { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chart { height: 190px; gap: 0.6rem; } }
   `]
 })
 export class AdminDashboardComponent implements OnInit {
+  private adminSvc = inject(AdminService);
+  private destroyRef = inject(DestroyRef);
+
   loading = signal(true);
   stats = signal<DashboardAdmin | null>(null);
-  weeklyStats = signal<any>(null);
+  hebdo = signal<any>(null);
   errorMessage = signal<string | null>(null);
-
-  constructor(private adminSvc: AdminService, private auth: AuthService) {}
-
-  isSuperAdmin(): boolean {
-    const user = this.auth.currentUser();
-    return user?.role === 'SUPER_ADMIN';
-  }
-
   derniereMaj = signal<Date | null>(null);
   rafraichissement = signal(false);
-  private destroyRef = inject(DestroyRef);
+
+  /** Semaines de la plus ancienne (à gauche) à la plus récente (à droite). */
+  barres = computed<Barre[]>(() => {
+    const h = this.hebdo();
+    if (!h?.coursesParSemaine) return [];
+    const libelles = ['Il y a 3 sem.', 'Il y a 2 sem.', 'Sem. dernière', 'Cette semaine'];
+    // Côté serveur, l'indice 0 = semaine en cours, 3 = il y a trois semaines.
+    return [3, 2, 1, 0].map((i, pos) => ({
+      semaine: libelles[pos],
+      courses: Number(h.coursesParSemaine[i] ?? 0),
+      pourcentage: Math.min(100, Math.round(Number(h.pourcentageTermines?.[i] ?? 0)))
+    }));
+  });
+  private maxCourses = computed(() => Math.max(1, ...this.barres().map(b => b.courses)));
 
   ngOnInit() {
     this.charger(false);
@@ -299,36 +212,31 @@ export class AdminDashboardComponent implements OnInit {
         this.loading.set(false);
         this.rafraichissement.set(false);
         this.derniereMaj.set(new Date());
-        if (this.isSuperAdmin()) {
-          this.adminSvc.getWeeklyStats().subscribe({
-            next: weekly => this.weeklyStats.set(weekly),
-            error: () => {}
-          });
-        }
       },
       error: () => {
         this.rafraichissement.set(false);
         this.loading.set(false);
         if (!this.stats() || manuel) {
-          this.errorMessage.set('Impossible de charger les statistiques. Vérifiez que service-administration (8091) est démarré.');
+          this.errorMessage.set("Impossible de charger les statistiques. Vérifiez que le service d'administration est démarré.");
         }
       }
     });
+    this.adminSvc.getWeeklyStats().subscribe({ next: w => this.hebdo.set(w), error: () => {} });
   }
 
-  getChartData() {
-    const stats = this.weeklyStats();
-    if (!stats || !stats.coursesParSemaine) return [];
-    
-    const semaines = ['Semaine 4', 'Semaine 3', 'Semaine 2', 'Semaine actuelle'];
-    const coursesParSemaine = stats.coursesParSemaine;
-    const pourcentages = stats.pourcentageTermines;
-    
-    // Côté serveur, la clé 0 = semaine en cours, 3 = il y a trois semaines.
-    return [0, 1, 2, 3].map(i => ({
-      week: semaines[3 - i],
-      courses: coursesParSemaine[i] || 0,
-      percentage: Math.min(100, Math.round(pourcentages?.[i] || 0))
-    }));
+  hauteur(courses: number): number {
+    return Math.round((courses / this.maxCourses()) * 100);
+  }
+
+  chauffeurs(s: DashboardAdmin): number {
+    return s.totalChauffeurs ?? s.totalConducteurs ?? 0;
+  }
+
+  signalements(s: DashboardAdmin): number {
+    return s.signalementsOuverts ?? s.signalementsEnCours ?? s.signalements ?? 0;
+  }
+
+  resumeGraphique(): string {
+    return this.barres().map(b => `${b.semaine} : ${b.courses} courses, ${b.pourcentage} % terminées`).join(' ; ');
   }
 }

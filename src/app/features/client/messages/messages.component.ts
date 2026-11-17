@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
@@ -37,6 +37,8 @@ export class MessagesComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
+  /** Composant partagé : côté chauffeur, les contacts sont des passagers. */
+  private libelleContact = inject(Router).url.startsWith('/chauffeur') ? 'Passager' : 'Chauffeur';
 
   @ViewChild('fil') fil?: ElementRef<HTMLElement>;
 
@@ -82,13 +84,13 @@ export class MessagesComponent implements OnInit {
     for (const c of convs) {
       const autre = c.participant1Id === userId ? c.participant2Id : c.participant1Id;
       if (autre === SUPPORT_ID || autre === userId) continue;
-      liste.push({ id: c.id, contactId: autre, nom: `Chauffeur #${autre}`, sousTitre: 'Conversation trajet', support: false });
+      liste.push({ id: c.id, contactId: autre, nom: `${this.libelleContact} #${autre}`, sousTitre: 'Conversation trajet', support: false });
     }
 
     // Contact demandé via ?avec= mais sans conversation existante : on prépare un fil vide.
     const demande = this.activeContactId();
     if (!liste.some(c => c.contactId === demande)) {
-      liste.push({ id: null, contactId: demande, nom: `Chauffeur #${demande}`, sousTitre: 'Nouveau message', support: false });
+      liste.push({ id: null, contactId: demande, nom: `${this.libelleContact} #${demande}`, sousTitre: 'Nouveau message', support: false });
     }
 
     this.conversations.set(liste);
@@ -96,7 +98,7 @@ export class MessagesComponent implements OnInit {
     this.chargerMessages();
   }
 
-  /** Remplace « Chauffeur #id » par le vrai nom du chauffeur. */
+  /** Remplace « Chauffeur #id » / « Passager #id » par le vrai nom du contact. */
   private enrichirNoms(liste: Conversation[]) {
     for (const c of liste.filter(x => !x.support)) {
       this.http.get<any>(`${environment.apiUrl}/utilisateurs/profil/${c.contactId}`).subscribe({
