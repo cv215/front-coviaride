@@ -34,8 +34,8 @@ export class UtilisateurService {
     return this.http.get<Page<Utilisateur>>(`${this.base}/chauffeurs/disponibles?page=${page}`);
   }
 
-  getAllAdmin(page = 0): Observable<Page<Utilisateur>> {
-    return this.http.get<Page<Utilisateur>>(`${this.base}/admin/tous?page=${page}`);
+  getAllAdmin(page = 0, size = 20): Observable<Page<Utilisateur>> {
+    return this.http.get<Page<Utilisateur>>(`${this.base}/admin/tous?page=${page}&size=${size}`);
   }
 
   changerStatut(id: number, statut: string): Observable<Utilisateur> {

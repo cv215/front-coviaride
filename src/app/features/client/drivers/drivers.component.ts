@@ -16,7 +16,7 @@ import { Utilisateur } from '../../../core/models';
   </div>
 
   @if (loading()) {
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem">
+    <div class="driver-loading-grid">
       @for (_ of [1,2,3,4,5,6]; track $index) {
         <div class="driver-card">
           <div class="driver-photo" style="background:var(--color-bg);animation:pulse 1.5s infinite"></div>
@@ -28,7 +28,7 @@ import { Utilisateur } from '../../../core/models';
       }
     </div>
   } @else {
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem">
+    <div class="driver-list-grid">
       @for (d of chauffeurs(); track d.id) {
         <div class="driver-card" (click)="selectedDriver.set(d)">
           <div class="driver-photo">
@@ -94,7 +94,7 @@ import { Utilisateur } from '../../../core/models';
             <span style="color:var(--color-muted);font-size:0.85rem;font-weight:400">({{ selectedDriver()?.nombreAvis }} avis)</span>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem">
+        <div class="operator-grid" style="margin-bottom:1.5rem">
           <div class="stat-card" style="padding:1rem">
             <div class="stat-info"><div class="value" style="font-size:1.25rem">{{ selectedDriver()?.nombreAvis }}</div><div class="label">Courses</div></div>
           </div>

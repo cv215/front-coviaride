@@ -23,6 +23,16 @@ export interface ValidatePasswordRequest {
   nouveauMotDePasse: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  nouveauMotDePasse: string;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -75,6 +85,7 @@ export interface Trajet {
   villeDepart: string;
   villeArrivee: string;
   pointsPassage?: string;
+  pointsArret?: string;
   dateDepart: string;
   heureDepart: string;
   prixParPlace: number;
@@ -97,6 +108,7 @@ export interface TrajetRequest {
   heureDepart: string;
   prixParPlace: number;
   nombrePlaces: number;
+  pointsArret?: string;
   description?: string;
   latDepart?: number;
   lngDepart?: number;
@@ -109,6 +121,8 @@ export interface Reservation {
   id: number;
   passagerId: number;
   trajetId: number;
+  villeDepart: string;
+  villeArrivee: string;
   chauffeurId: number;
   nombrePlaces: number;
   statut: 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE' | 'TERMINEE';
@@ -118,6 +132,12 @@ export interface Reservation {
   dateEmbarquement?: string;
   dateArrivee?: string;
   paiementId?: number;
+  montantTotal?: number;
+  prixParPlace?: number;
+  pointArret?: string;
+  dateAnnulation?: string;
+  motifAnnulation?: string;
+  note?: number;
 }
 
 // ─── PAIEMENT ─────────────────────────────────────────────────────────────────
@@ -160,6 +180,14 @@ export interface MobileMoneyRequest {
   moyen: 'MTN_MOMO' | 'ORANGE_MONEY';
   numeroTelephone: string;
   montant: number;
+}
+
+export interface RetraitAvecCodeValidationRequest {
+  moyen: 'MTN_MOMO' | 'ORANGE_MONEY';
+  numeroTelephone: string;
+  montant: number;
+  email: string;
+  codeValidation: string;
 }
 
 // ─── NOTIFICATION ─────────────────────────────────────────────────────────────
@@ -229,12 +257,26 @@ export interface DashboardAdmin {
   totalUtilisateurs: number;
   totalPassagers: number;
   totalConducteurs: number;
+  totalChauffeurs?: number;
   totalTrajets: number;
   trajetsEnCours: number;
   trajetsTermines: number;
   totalCommissions: number;
   revenusPlateforme: number;
-  signalementsOuverts: number;
+  signalements?: number;
+  signalementsOuverts?: number;
+  signalementsEnCours?: number;
+  signalementsSemaine?: number;
+  inscritsSemaine?: number;
+  utilisateursActifs30J?: number;
+  utilisateursInactifs30J?: number;
+  activiteMois?: {
+    trajetsCrees: number;
+    trajetsTermines: number;
+    nouveauxUtilisateurs: number;
+    utilisateursActifs: number;
+    utilisateursInactifs: number;
+  };
 }
 
 // ------profil---------------------------------------------------

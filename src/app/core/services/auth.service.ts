@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, InscriptionRequest, LoginRequest, ValidatePasswordRequest } from '../models';
+import { AuthResponse, ForgotPasswordRequest, InscriptionRequest, LoginRequest, ResetPasswordRequest, ValidatePasswordRequest } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -27,22 +27,36 @@ export class AuthService {
 
   connexion(req: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/connexion`, req).pipe(
-      tap(res => {
-        localStorage.setItem(this.TOKEN_KEY, res.accessToken);
-        localStorage.setItem(this.REFRESH_KEY, res.refreshToken);
-        localStorage.setItem(this.USER_KEY, JSON.stringify(res));
-
-        this.currentUser.set(res);
-      })
+      tap(res => this.sauvegarderSession(res))
     );
   }
 
-  deconnexion(): void {
+  demanderResetPassword(req: ForgotPasswordRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/mot-de-passe/oublie`, req);
+  }
+
+  reinitialiserMotDePasse(req: ResetPasswordRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/mot-de-passe/reset`, req);
+  }
+
+  /** @param expiree true quand la session a expiré : on renvoie vers la connexion en gardant la page demandée. */
+  deconnexion(expiree = false): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_KEY);
     localStorage.removeItem(this.USER_KEY);
     this.currentUser.set(null);
-    this.router.navigate(['/']);
+    if (expiree) {
+      const retour = this.router.url;
+      if (!retour.startsWith('/connexion')) {
+        this.router.navigate(['/connexion'], { queryParams: { expire: 1, retour } });
+      }
+    } else {
+      this.router.navigate(['/']);
+    }
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_KEY);
   }
 
   getToken(): string | null {
@@ -50,8 +64,19 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    const token = this.getToken()
-    return !!token;
+    const token = this.getToken();
+    if (!token) return false;
+    // Access token expiré mais refresh token présent : l'intercepteur le renouvellera.
+    return !this.estExpire(token) || !!this.getRefreshToken();
+  }
+
+  private estExpire(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
   }
 
   getRole(): string {
@@ -90,14 +115,20 @@ export class AuthService {
   }
 
   private sauvegarderSession(res: AuthResponse): void {
+    const user = { ...(this.currentUser() ?? {}), ...res } as AuthResponse;
     localStorage.setItem(this.TOKEN_KEY, res.accessToken);
-    localStorage.setItem(this.REFRESH_KEY, res.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(res));
-    this.currentUser.set(res);
+    if (res.refreshToken) localStorage.setItem(this.REFRESH_KEY, res.refreshToken);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.currentUser.set(user);
   }
 
   private loadUser(): AuthResponse | null {
-    const data = localStorage.getItem(this.USER_KEY);
-    return data ? JSON.parse(data) : null;
+    try {
+      const data = localStorage.getItem(this.USER_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      localStorage.removeItem(this.USER_KEY);
+      return null;
+    }
   }
 }

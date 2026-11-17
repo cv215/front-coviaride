@@ -45,16 +45,54 @@ import { AuthService } from '../../../core/services/auth.service';
     <div class="auth-footer"><a routerLink="/connexion">← Retour à la connexion</a></div>
   </div>
   <div class="auth-hero-side">
-    <div style="background:linear-gradient(135deg,#065F46 0%,#10B981 100%);width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:3rem">
-      <div style="text-align:center;color:white">
-        <div style="font-size:5rem;margin-bottom:1rem">✉️</div>
-        <h2 style="color:white;font-size:1.75rem;margin-bottom:0.5rem">Vérifiez votre email</h2>
-        <p style="color:rgba(255,255,255,0.8)">Un email avec votre mot de passe temporaire a été envoyé à votre adresse</p>
+    <div class="activation-hero-bg">
+      <div class="activation-hero-content">
+        <div class="activation-icon">✉️</div>
+        <h2>Vérifiez votre email</h2>
+        <p>Un email avec votre mot de passe temporaire a été envoyé à votre adresse</p>
       </div>
     </div>
   </div>
 </div>`,
-  styles: []
+  styles: [`
+    .auth-hero-side {
+      min-height: 100%;
+    }
+    .activation-hero-bg {
+      background-image: linear-gradient(rgba(1, 34, 29, 0.55), rgba(4, 116, 91, 0.62)), url('https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80');
+      background-size: cover;
+      background-position: center;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+    .activation-hero-content {
+      text-align: center;
+      color: white;
+      max-width: 420px;
+      padding: 2rem;
+      border-radius: 1rem;
+      background: rgba(6, 30, 24, 0.46);
+      backdrop-filter: blur(6px);
+    }
+    .activation-icon {
+      font-size: 5rem;
+      margin-bottom: 1rem;
+    }
+    .activation-hero-content h2 {
+      color: white;
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .activation-hero-content p {
+      color: rgba(255,255,255,0.88);
+      line-height: 1.7;
+    }
+  `]
 })
 export class ValidatePasswordComponent {
   showPwdT = false;

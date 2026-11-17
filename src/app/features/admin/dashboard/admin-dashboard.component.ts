@@ -1,7 +1,10 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AdminService } from '../../../core/services/admin.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { DashboardAdmin } from '../../../core/models';
 
 @Component({
@@ -10,89 +13,178 @@ import { DashboardAdmin } from '../../../core/models';
   imports: [CommonModule, RouterLink],
   template: `
 <div>
-  <div style="margin-bottom:2rem">
-    <h2>Dashboard Administration</h2>
-    <p>Vue d'ensemble de la plateforme CoviaRide</p>
+  <div style="margin-bottom:2rem;display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
+    <div>
+      <h2>Dashboard Administration</h2>
+      <p>Vue d'ensemble de la plateforme CoviaRide
+        @if (derniereMaj()) { · mis à jour à {{ derniereMaj() | date:'HH:mm:ss' }} }
+      </p>
+    </div>
+    <button class="btn btn-outline btn-sm" (click)="charger(true)" [disabled]="rafraichissement()">
+      {{ rafraichissement() ? 'Actualisation…' : '⟳ Actualiser' }}
+    </button>
   </div>
 
   @if (loading()) {
     <div style="text-align:center;padding:3rem;color:var(--color-muted)">Chargement des statistiques...</div>
+  } @else if (errorMessage()) {
+    <div class="card" style="border-left:4px solid var(--color-danger)">
+      <h3 style="margin-bottom:0.5rem">Tableau de bord indisponible</h3>
+      <p style="margin:0 0 1rem;color:var(--color-muted)">{{ errorMessage() }}</p>
+      <button class="btn btn-primary btn-sm" (click)="charger(true)">Réessayer</button>
+    </div>
   } @else if (stats()) {
-    <!-- STATS PRINCIPALES -->
+    @if (isSuperAdmin()) {
+      <!-- SUPER ADMIN SECTION -->
+      <div class="super-admin-section" style="margin-bottom:2rem;padding:1.5rem;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:var(--radius-md);color:white">
+        <h3 style="margin-bottom:1.5rem;font-size:1.25rem">🎯 Dashboard Super Admin</h3>
+        
+        <div class="stats-grid" style="margin-bottom:2rem">
+          <!-- Chauffeurs -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.totalChauffeurs ?? stats()?.totalConducteurs ?? 0 | number }}</div>
+              <div class="label">Chauffeurs inscrits</div>
+              <div class="sub-label">Conducteurs actifs</div>
+            </div>
+          </div>
+
+          <!-- Passagers -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.totalPassagers ?? 0 | number }}</div>
+              <div class="label">Passagers inscrits</div>
+              <div class="sub-label">Usagers actifs</div>
+            </div>
+          </div>
+
+          <!-- Courses en cours -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.trajetsEnCours ?? 0 | number }}</div>
+              <div class="label">Courses en cours</div>
+              <div class="sub-label">En route</div>
+            </div>
+          </div>
+
+          <!-- Courses terminées -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.trajetsTermines ?? 0 | number }}</div>
+              <div class="label">Courses terminées</div>
+              <div class="sub-label">Complétées</div>
+            </div>
+          </div>
+
+          <!-- Actifs 30 jours -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.utilisateursActifs30J ?? 0 | number }}</div>
+              <div class="label">Personnes actives / 30j</div>
+              <div class="sub-label">Utilisateurs engagés</div>
+            </div>
+          </div>
+
+          <!-- Inactifs 30 jours -->
+          <div class="stat-card super-admin-card">
+            <div class="stat-info">
+              <div class="value">{{ stats()?.utilisateursInactifs30J ?? 0 | number }}</div>
+              <div class="label">Personnes inactives / 30j</div>
+              <div class="sub-label">Sans activité</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graphique hebdomadaire -->
+        @if (weeklyStats()) {
+          <div class="weekly-chart" style="background:rgba(255,255,255,0.1);padding:1.5rem;border-radius:var(--radius-md);backdrop-filter:blur(10px)">
+            <h4 style="margin-bottom:1rem;color:white">Activité hebdomadaire (% de completion)</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:1rem;align-items:flex-end">
+              @for (item of getChartData(); track item.week) {
+                <div style="text-align:center">
+                  <div style="position:relative;height:150px;background:rgba(255,255,255,0.2);border-radius:4px;margin-bottom:0.5rem;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden">
+                    <div [style.height.%]="item.percentage" style="background:linear-gradient(to top, #4ade80, #22c55e);border-radius:4px 4px 0 0;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;transition:all 0.3s">
+                      @if (item.percentage > 15) {
+                        <span style="font-size:0.75rem">{{ item.percentage | number:'1.0-0' }}%</span>
+                      }
+                    </div>
+                  </div>
+                  <div style="font-size:0.8rem;color:rgba(255,255,255,0.9);font-weight:600">{{ item.week }}</div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,0.7)">{{ item.courses }} courses</div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- STATS COMMUNES -->
     <div class="stats-grid" style="margin-bottom:2rem">
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()?.inscritsSemaine ?? 0 | number }}</div>
+          <div class="label">Nouveaux inscrits / 7j</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()?.totalChauffeurs ?? stats()?.totalConducteurs ?? 0 | number }}</div>
+          <div class="label">Total chauffeurs</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()?.totalPassagers ?? 0 | number }}</div>
+          <div class="label">Total passagers</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()?.signalementsEnCours ?? stats()?.signalementsOuverts ?? stats()?.signalements ?? 0 | number }}</div>
+          <div class="label">Cas en cours</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()!.signalementsSemaine ?? 0 | number }}</div>
+          <div class="label">Cas traités / 7j</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()!.utilisateursActifs30J ?? 0 | number }}</div>
+          <div class="label">Personnes actives / 30j</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <div class="value">{{ stats()!.utilisateursInactifs30J ?? 0 | number }}</div>
+          <div class="label">Personnes inactives / 30j</div>
+        </div>
+      </div>
       <div class="stat-card">
         <div class="stat-info">
           <div class="value">{{ stats()!.totalUtilisateurs | number }}</div>
           <div class="label">Utilisateurs total</div>
         </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.totalPassagers | number }}</div>
-          <div class="label">Clients</div>
-        </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.totalConducteurs | number }}</div>
-          <div class="label">Chauffeurs</div>
-        </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-info">
-          <div class="value">{{ stats()!.totalTrajets | number }}</div>
-          <div class="label">Trajets total</div>
-        </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-      </div>
-      <div class="stat-card" style="border-color:var(--color-success)">
-        <div class="stat-info">
-          <div class="value" style="color:var(--color-success)">{{ stats()!.trajetsEnCours | number }}</div>
-          <div class="label">Trajets en cours</div>
-        </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-      </div>
-      <div class="stat-card" style="border-color:var(--color-accent)">
-        <div class="stat-info">
-          <div class="value" style="color:var(--color-accent)">{{ stats()!.totalCommissions | number:'1.0-0' }} XAF</div>
-          <div class="label">Commissions totales (5%)</div>
-        </div>
-        <div class="stat-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        </div>
       </div>
     </div>
 
-    <!-- ALERTES + ACTIONS RAPIDES -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
-      <!-- SIGNALEMENTS OUVERTS -->
+    <div class="admin-summary-grid" style="margin-bottom:2rem">
       <div class="card" style="border-left:4px solid var(--color-warning)">
-        <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
           <div>
             <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-warning);margin-bottom:0.25rem">Signalements</div>
-            <div style="font-size:2rem;font-weight:800">{{ stats()!.signalementsOuverts }}</div>
+            <div style="font-size:2rem;font-weight:800">{{ stats()?.signalementsOuverts ?? stats()?.signalementsEnCours ?? stats()?.signalements ?? 0 }}</div>
             <div style="font-size:0.85rem;color:var(--color-muted)">En attente de traitement</div>
           </div>
           <a routerLink="/admin/signalements" class="btn btn-outline btn-sm">Traiter →</a>
         </div>
       </div>
 
-      <!-- REVENUS PLATEFORME -->
       <div class="card" style="border-left:4px solid var(--color-success)">
-        <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
           <div>
             <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-success);margin-bottom:0.25rem">Revenus plateforme</div>
             <div style="font-size:2rem;font-weight:800">{{ stats()!.revenusPlateforme | number:'1.0-0' }} XAF</div>
@@ -103,10 +195,39 @@ import { DashboardAdmin } from '../../../core/models';
       </div>
     </div>
 
-    <!-- ACTIONS RAPIDES -->
+    <div class="card" style="margin-bottom:2rem">
+      <h3 style="margin-bottom:1rem">Récapitulatif d’activité du mois</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-info">
+            <div class="value">{{ stats()!.activiteMois?.trajetsCrees ?? 0 | number }}</div>
+            <div class="label">Trajets créés</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <div class="value">{{ stats()!.activiteMois?.trajetsTermines ?? 0 | number }}</div>
+            <div class="label">Courses terminées</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <div class="value">{{ stats()!.activiteMois?.nouveauxUtilisateurs ?? 0 | number }}</div>
+            <div class="label">Nouveaux profils</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <div class="value">{{ stats()!.activiteMois?.utilisateursActifs ?? 0 | number }}</div>
+            <div class="label">Utilisateurs actifs</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <h3 style="margin-bottom:1.5rem">Actions rapides</h3>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+      <div class="admin-quick-actions">
         <a routerLink="/admin/utilisateurs" class="quick-action">
           <div class="qa-icon" style="background:#EDE9FE">
             <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" style="width:20px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -148,13 +269,66 @@ import { DashboardAdmin } from '../../../core/models';
 export class AdminDashboardComponent implements OnInit {
   loading = signal(true);
   stats = signal<DashboardAdmin | null>(null);
+  weeklyStats = signal<any>(null);
+  errorMessage = signal<string | null>(null);
 
-  constructor(private adminSvc: AdminService) {}
+  constructor(private adminSvc: AdminService, private auth: AuthService) {}
+
+  isSuperAdmin(): boolean {
+    const user = this.auth.currentUser();
+    return user?.role === 'SUPER_ADMIN';
+  }
+
+  derniereMaj = signal<Date | null>(null);
+  rafraichissement = signal(false);
+  private destroyRef = inject(DestroyRef);
 
   ngOnInit() {
-    this.adminSvc.getDashboard().subscribe({
-      next: s => { this.stats.set(s); this.loading.set(false); },
-      error: () => this.loading.set(false)
+    this.charger(false);
+    interval(60000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (!document.hidden) this.charger(false);
     });
+  }
+
+  charger(manuel: boolean) {
+    this.rafraichissement.set(true);
+    this.adminSvc.getDashboard().subscribe({
+      next: data => {
+        this.stats.set(data);
+        this.errorMessage.set(null);
+        this.loading.set(false);
+        this.rafraichissement.set(false);
+        this.derniereMaj.set(new Date());
+        if (this.isSuperAdmin()) {
+          this.adminSvc.getWeeklyStats().subscribe({
+            next: weekly => this.weeklyStats.set(weekly),
+            error: () => {}
+          });
+        }
+      },
+      error: () => {
+        this.rafraichissement.set(false);
+        this.loading.set(false);
+        if (!this.stats() || manuel) {
+          this.errorMessage.set('Impossible de charger les statistiques. Vérifiez que service-administration (8091) est démarré.');
+        }
+      }
+    });
+  }
+
+  getChartData() {
+    const stats = this.weeklyStats();
+    if (!stats || !stats.coursesParSemaine) return [];
+    
+    const semaines = ['Semaine 4', 'Semaine 3', 'Semaine 2', 'Semaine actuelle'];
+    const coursesParSemaine = stats.coursesParSemaine;
+    const pourcentages = stats.pourcentageTermines;
+    
+    // Côté serveur, la clé 0 = semaine en cours, 3 = il y a trois semaines.
+    return [0, 1, 2, 3].map(i => ({
+      week: semaines[3 - i],
+      courses: coursesParSemaine[i] || 0,
+      percentage: Math.min(100, Math.round(pourcentages?.[i] || 0))
+    }));
   }
 }

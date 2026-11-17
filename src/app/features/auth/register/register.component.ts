@@ -153,7 +153,11 @@ import { PasswordStrengthComponent } from '../../../shared/components/password-s
 
   <!-- HERO SIDE -->
   <div class="auth-hero-side">
-    <div class="hero-bg">
+    <div class="hero-bg" [class.hero-bg-client]="role() === 'PASSAGER'" [class.hero-bg-chauffeur]="role() === 'CHAUFFEUR'">
+      <div class="role-card-bg" [class.role-card-bg-client]="role() === 'PASSAGER'" [class.role-card-bg-chauffeur]="role() === 'CHAUFFEUR'">
+        <div class="role-card-bg__avatar" [class.role-card-bg__avatar-client]="role() === 'PASSAGER'" [class.role-card-bg__avatar-chauffeur]="role() === 'CHAUFFEUR'"></div>
+        <div class="role-card-bg__name">{{ role() === 'PASSAGER' ? 'Client' : 'Chauffeur' }}</div>
+      </div>
       <div class="hero-overlay">
         <div class="hero-stats">
           <div class="stat"><div class="value">2,500+</div><div class="label">Chauffeurs</div></div>
@@ -182,8 +186,67 @@ import { PasswordStrengthComponent } from '../../../shared/components/password-s
   styles: [`
     .back-link { margin-bottom:1.5rem; }
     .hero-bg {
-      background: linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
-      width:100%; height:100%; display:flex; align-items:flex-end; padding:2rem; }
+      background-size: cover;
+      background-position: center;
+      width:100%; height:100%; display:flex; align-items:flex-end; padding:2rem; position:relative; }
+    .hero-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 58% 65%, transparent 0%, rgba(0,0,0,0.45) 100%);
+      pointer-events:none;
+    }
+    .hero-bg-client {
+      background-image: linear-gradient(rgba(12,24,34,0.58), rgba(18,63,72,0.78)), url('https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80');
+    }
+    .hero-bg-chauffeur {
+      background-image: linear-gradient(rgba(10,10,10,0.55), rgba(30,8,8,0.72)), url('https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&q=80');
+    }
+    .role-card-bg {
+      position:absolute;
+      left:2rem;
+      top:2rem;
+      z-index:1;
+      display:flex;
+      align-items:center;
+      gap:0.65rem;
+      padding:0.65rem 0.8rem;
+      border-radius:999px;
+      background:rgba(255,255,255,0.15);
+      border:1px solid rgba(255,255,255,0.55);
+      backdrop-filter: blur(10px);
+      color:#fff;
+      font-size:0.75rem;
+      font-weight:700;
+    }
+    .role-card-bg__avatar {
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      border:2px solid #fff;
+      background-size:cover;
+      background-position:center;
+    }
+    .role-card-bg__avatar-client {
+      background-image: url('https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80');
+    }
+    .role-card-bg__avatar-chauffeur {
+      background-image: url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80');
+    }
+    .role-card-bg__name {
+      letter-spacing:0.04em;
+      text-transform:uppercase;
+    }
+    .role-card-bg-client { display: flex; }
+    .role-card-bg-chauffeur { display: flex; }
+    .hero-overlay {
+      position:relative;
+      z-index:2;
+      background:rgba(255,255,255,0.92);
+      border-radius:var(--radius-lg);
+      padding:1.5rem;
+      width:100%;
+    }
     .hero-features .feature { display:flex; align-items:center; gap:0.6rem; font-size:0.9rem; }
     .check { width:22px;height:22px;border-radius:50%;background:#f0f0f0;
       display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -224,7 +287,6 @@ export class RegisterComponent {
     });
   }
 
-  // ← AJOUTER CETTE MÉTHODE
   onPwdInput(event: Event) {
   const val = (event.target as HTMLInputElement).value;
   this.pwdValue = val;

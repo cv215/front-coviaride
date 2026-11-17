@@ -21,6 +21,10 @@ export const routes: Routes = [
     path: 'valider-compte',
     loadComponent: () => import('./features/auth/validate-password/validate-password.component').then(m => m.ValidatePasswordComponent)
   },
+  {
+    path: 'mot-de-passe-oublie',
+    loadComponent: () => import('./features/auth/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
 
   // CLIENT SPACE
   {
@@ -63,11 +67,6 @@ export const routes: Routes = [
       },
 
       {
-       path: 'profil',
-       loadComponent: () => import('./features/client/remboursement/remboursement.component').then(m => m.RemboursementComponent)
-      },
-
-      {
         path: 'suivi/:id',
         loadComponent: () => import('./features/client/tracking/tracking.component').then(m => m.TrackingComponent)
       },
@@ -96,6 +95,10 @@ export const routes: Routes = [
       {
         path: 'revenus',
         loadComponent: () => import('./features/chauffeur/earnings/earnings.component').then(m => m.EarningsComponent)
+      },
+      {
+        path: 'profil',
+        loadComponent: () => import('./features/chauffeur/profile/chauffeur-profile.component').then(m => m.ChauffeurProfileComponent)
       },
       {
        path: 'messages',
@@ -130,6 +133,10 @@ export const routes: Routes = [
       {
         path: 'commissions',
         loadComponent: () => import('./features/admin/commissions/commissions.component').then(m => m.CommissionsComponent)
+      },
+      {
+        path: 'admins',
+        loadComponent: () => import('./features/admin/admins/admins.component').then(m => m.AdminsComponent)
       },
       {
         path: 'remboursements',

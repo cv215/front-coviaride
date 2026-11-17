@@ -10,9 +10,9 @@ export class ReservationService {
 
   constructor(private http: HttpClient) {}
 
-  reserver(passagerId: number, trajetId: number, chauffeurId: number, nombrePlaces: number): Observable<Reservation> {
+  reserver(passagerId: number, trajetId: number, chauffeurId: number, nombrePlaces: number, pointArret?: string, prixParPlace?: number): Observable<Reservation> {
     return this.http.post<Reservation>(`${this.base}/passager/${passagerId}`,
-      { trajetId, chauffeurId, nombrePlaces });
+      { trajetId, chauffeurId, nombrePlaces, pointArret, prixParPlace });
   }
 
   annuler(rezId: number, passagerId: number): Observable<Reservation> {
@@ -27,8 +27,8 @@ export class ReservationService {
     return this.http.post<Reservation>(`${this.base}/${rezId}/passager/${passagerId}/arrivee`, { montantTotal });
   }
 
-  getMesReservations(passagerId: number, page = 0): Observable<Page<Reservation>> {
-    return this.http.get<Page<Reservation>>(`${this.base}/passager/${passagerId}?page=${page}`);
+  getMesReservations(passagerId: number, page = 0, size = 50): Observable<Page<Reservation>> {
+    return this.http.get<Page<Reservation>>(`${this.base}/passager/${passagerId}?page=${page}&size=${size}`);
   }
 
   accepter(rezId: number, chauffeurId: number, prixParPlace: number): Observable<Reservation> {

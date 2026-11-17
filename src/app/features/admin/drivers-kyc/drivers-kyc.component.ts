@@ -1,4 +1,7 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { AdminService } from '../../../core/services/admin.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
 import { CommonModule } from '@angular/common';
 import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { Utilisateur } from '../../../core/models';
@@ -14,7 +17,7 @@ import { Utilisateur } from '../../../core/models';
     <p>Vérification des permis, CNI, assurance et carte grise</p>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem">
+  <div class="two-col-grid" style="margin-bottom:2rem">
     <div class="card" style="border-left:4px solid var(--color-warning)">
       <div style="font-size:0.8rem;font-weight:600;color:var(--color-warning);margin-bottom:0.25rem">EN ATTENTE</div>
       <div style="font-size:2rem;font-weight:800">{{ enAttente().length }}</div>
@@ -25,11 +28,13 @@ import { Utilisateur } from '../../../core/models';
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+  <div class="two-col-grid" style="gap:1.5rem">
     <!-- EN ATTENTE -->
     <div>
       <h3 style="margin-bottom:1rem"> En attente de validation</h3>
-      @if (enAttente().length === 0) {
+      @if (loading()) {
+        <div class="card" style="text-align:center;padding:2rem;color:var(--color-muted)">Chargement des dossiers…</div>
+      } @else if (enAttente().length === 0) {
         <div class="card" style="text-align:center;padding:2rem">
           <p style="color:var(--color-success)">✓ Tous les chauffeurs sont validés</p>
         </div>
@@ -69,8 +74,8 @@ import { Utilisateur } from '../../../core/models';
             }
           </div>
           <div style="display:flex;gap:0.5rem">
-            <button class="btn btn-success btn-sm" (click)="validerKyc(c)">✓ Valider KYC</button>
-            <button class="btn btn-danger btn-sm" (click)="bloquer(c)">✕ Refuser</button>
+            <button class="btn btn-success btn-sm" (click)="validerKyc(c)" [disabled]="busy() === c.id">✓ Valider KYC</button>
+            <button class="btn btn-danger btn-sm" (click)="bloquer(c)" [disabled]="busy() === c.id">✕ Refuser</button>
           </div>
         </div>
       }
@@ -105,33 +110,65 @@ import { Utilisateur } from '../../../core/models';
 </div>`
 })
 export class DriversKycComponent implements OnInit {
+  private userSvc = inject(UtilisateurService);
+  private adminSvc = inject(AdminService);
+  private toast = inject(ToastService);
+  private confirm = inject(ConfirmService);
+
   loading = signal(true);
+  busy = signal<number | null>(null);
   chauffeurs = signal<Utilisateur[]>([]);
 
-  enAttente() { return this.chauffeurs().filter(c => !c.kycValide); }
+  enAttente() { return this.chauffeurs().filter(c => !c.kycValide && c.statut !== 'BLOQUE'); }
   valides()   { return this.chauffeurs().filter(c => c.kycValide); }
 
-  constructor(private userSvc: UtilisateurService) {}
+  ngOnInit() { this.charger(); }
 
-  ngOnInit() {
-    this.userSvc.getAllAdmin(0).subscribe({
+  charger() {
+    this.loading.set(true);
+    this.userSvc.getAllAdmin(0, 500).subscribe({
       next: p => {
-        this.chauffeurs.set(p.content.filter(u => u.role === 'CHAUFFEUR' || u.role === 'PASSAGER_ET_CHAUFFEUR'));
+        this.chauffeurs.set((p.content ?? []).filter(u => u.role === 'CHAUFFEUR' || u.role === 'PASSAGER_ET_CHAUFFEUR'));
         this.loading.set(false);
       },
-      error: () => this.loading.set(false)
+      error: err => { this.loading.set(false); this.toast.error('Chargement impossible', err); }
     });
   }
 
-  validerKyc(c: Utilisateur) {
+  async validerKyc(c: Utilisateur) {
+    const ok = await this.confirm.ask({
+      title: `Valider ${c.prenom ?? ''} ${c.nom ?? ''} ?`,
+      message: "Le chauffeur pourra publier des trajets. Confirmez avoir vérifié le permis, la CNI et le véhicule.",
+      confirmLabel: 'Valider le KYC'
+    });
+    if (!ok) return;
+    this.busy.set(c.id);
     this.userSvc.validerKyc(c.id).subscribe({
-      next: updated => this.chauffeurs.update(arr => arr.map(x => x.id === c.id ? updated : x))
+      next: updated => {
+        this.busy.set(null);
+        this.chauffeurs.update(arr => arr.map(x => x.id === c.id ? { ...x, ...updated } : x));
+        this.toast.success('KYC validé', `${c.prenom ?? ''} ${c.nom ?? ''}`.trim());
+      },
+      error: err => { this.busy.set(null); this.toast.error('Validation impossible', err); }
     });
   }
 
-  bloquer(c: Utilisateur) {
+  async bloquer(c: Utilisateur) {
+    const ok = await this.confirm.ask({
+      title: 'Refuser ce dossier ?',
+      message: "Le compte du chauffeur sera bloqué (connexion comprise) jusqu'à nouvel ordre.",
+      confirmLabel: 'Refuser et bloquer', danger: true
+    });
+    if (!ok) return;
+    this.busy.set(c.id);
     this.userSvc.changerStatut(c.id, 'BLOQUE').subscribe({
-      next: updated => this.chauffeurs.update(arr => arr.map(x => x.id === c.id ? updated : x))
+      next: updated => {
+        this.adminSvc.changerBlocageCompte(c.id, true).subscribe({ error: () => {} });
+        this.busy.set(null);
+        this.chauffeurs.update(arr => arr.map(x => x.id === c.id ? { ...x, ...updated } : x));
+        this.toast.info('Dossier refusé', 'Le chauffeur a été bloqué.');
+      },
+      error: err => { this.busy.set(null); this.toast.error('Action impossible', err); }
     });
   }
 }

@@ -23,7 +23,7 @@ import { AdminService } from '../../../core/services/admin.service';
   <!-- EXPLICATION DU MÉCANISME -->
   <div class="card" style="margin-bottom:2rem">
     <h3 style="margin-bottom:1rem"> Mécanisme de paiement sécurisé</h3>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem">
+    <div class="three-col-grid">
       <div style="text-align:center;padding:1.5rem;background:var(--color-bg);border-radius:var(--radius-md)">
         <div style="font-size:2rem;margin-bottom:0.5rem"></div>
         <div style="font-weight:700;margin-bottom:0.5rem">Étape 1 — Blocage</div>

@@ -1,4 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
+import { ConfirmService } from '../../../core/services/confirm.service';
+import { ToastService, fcfa } from '../../../core/services/toast.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -38,7 +42,7 @@ import { shareReplay } from 'rxjs';
     </div>
     <div class="stat-card">
       <div class="stat-info">
-        <div class="value">{{ portefeuille()?.soldeDisponible | number:'1.0-0' }} XAF</div>
+        <div class="value">{{ portefeuille()?.soldeDisponible ?? 0 | number:'1.0-0' }} FCFA</div>
         <div class="label">Solde disponible</div>
       </div>
       <div class="stat-icon">
@@ -48,7 +52,7 @@ import { shareReplay } from 'rxjs';
   </div>
 
   <!-- DEMANDES EN ATTENTE -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+  <div class="chauffeur-dashboard-main">
     <div>
       <h3 style="margin-bottom:1rem">Demandes de réservation</h3>
       @if (reservationsEnAttente().length === 0) {
@@ -61,13 +65,17 @@ import { shareReplay } from 'rxjs';
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
               <div>
                 <strong>Passager #{{ r.passagerId }}</strong>
-                <div style="font-size:0.85rem;color:var(--color-muted)">{{ r.nombrePlaces }} place(s) · Trajet #{{ r.trajetId }}</div>
+                <div style="font-size:0.85rem;color:var(--color-muted)">
+                  {{ r.villeDepart ? r.villeDepart + ' → ' + r.villeArrivee : 'Trajet #' + r.trajetId }}
+                  · {{ r.nombrePlaces }} place(s){{ r.pointArret ? ' · arrêt ' + r.pointArret : '' }}
+                </div>
+                <div style="font-weight:700;margin-top:.2rem">{{ fcfa(r.montantTotal) }}</div>
               </div>
               <span class="badge badge-warning">En attente</span>
             </div>
             <div style="display:flex;gap:0.75rem">
-              <button class="btn btn-success btn-sm" (click)="accepter(r)">✓ Accepter</button>
-              <button class="btn btn-danger btn-sm" (click)="refuser(r)">✕ Refuser</button>
+              <button class="btn btn-success btn-sm" (click)="accepter(r)" [disabled]="traitement() === r.id">✓ Accepter</button>
+              <button class="btn btn-danger btn-sm" (click)="refuser(r)" [disabled]="traitement() === r.id">✕ Refuser</button>
             </div>
           </div>
         }
@@ -85,12 +93,12 @@ import { shareReplay } from 'rxjs';
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-weight:600">{{ t.villeDepart }} → {{ t.villeArrivee }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.dateDepart }} · {{ t.heureDepart }}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.placesDisponibles }}/{{ t.nombrePlaces }} places</div>
+              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.dateDepart | date:'EEE d MMM' }} · {{ (t.heureDepart || '').slice(0,5) }}</div>
+              <div style="font-size:0.85rem;color:var(--color-muted)">{{ t.placesDisponibles }} place(s) libre(s) sur {{ t.nombrePlaces }}</div>
             </div>
             <div style="text-align:right">
-              <div style="font-weight:700">{{ t.prixParPlace | number:'1.0-0' }} XAF</div>
-              <span class="badge" [class]="getBadgeTrajet(t.statut)">{{ t.statut }}</span>
+              <div style="font-weight:700">{{ t.prixParPlace | number:'1.0-0' }} FCFA</div>
+              <span class="badge" [class]="getBadgeTrajet(t.statut)">{{ ({ PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' })[t.statut] ?? t.statut }}</span>
             </div>
           </div>
           @if (t.statut === 'PLANIFIE') {
@@ -111,6 +119,11 @@ import { shareReplay } from 'rxjs';
 </div>`
 })
 export class ChauffeurDashboardComponent implements OnInit {
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
+  private confirm = inject(ConfirmService);
+  traitement = signal<number | null>(null);
+  fcfa = fcfa;
   reservationsEnAttente = signal<Reservation[]>([]);
   mesTrajets = signal<Trajet[]>([]);
   portefeuille = signal<Portefeuille | null>(null);
@@ -136,8 +149,10 @@ export class ChauffeurDashboardComponent implements OnInit {
           error: () => {}
         });
 
-    this.rezSvc.getEnAttente(u.compteId).subscribe({
-      next: p => { this.reservationsEnAttente.set(p.content); this.demandesEnAttente.set(p.totalElements); }
+    this.chargerDemandes(false);
+    // Nouvelles demandes de réservation détectées toutes les 20 s, avec notification.
+    interval(20000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (!document.hidden && !this.traitement()) this.chargerDemandes(true);
     });
     this.trajetSvc.getMesTrajets(u.compteId).subscribe({
       next: p => { this.mesTrajets.set(p.content); this.totalTrajets.set(p.totalElements); }
@@ -145,33 +160,65 @@ export class ChauffeurDashboardComponent implements OnInit {
     this.walletSvc.get(u.compteId).subscribe({ next: w => this.portefeuille.set(w), error: () => {} });
   }
 
-  accepter(r: Reservation) {
+  private chargerDemandes(signaler: boolean) {
     const u = this.auth.currentUser();
     if (!u) return;
-    this.rezSvc.accepter(r.id, u.compteId, 5000).subscribe({
-      next: () => this.reservationsEnAttente.update(arr => arr.filter(x => x.id !== r.id)),
-      error: err => {
-        console.error('Erreur lors de l\'acceptation de la réservation', err);     
-      }
+    this.rezSvc.getEnAttente(u.compteId).subscribe({
+      next: p => {
+        const connues = new Set(this.reservationsEnAttente().map(r => r.id));
+        const nouvelles = (p.content ?? []).filter(r => !connues.has(r.id));
+        this.reservationsEnAttente.set(p.content ?? []);
+        this.demandesEnAttente.set(p.totalElements ?? 0);
+        if (signaler && nouvelles.length) {
+          const r = nouvelles[0];
+          this.toast.info(nouvelles.length > 1 ? `${nouvelles.length} nouvelles demandes de réservation` : 'Nouvelle demande de réservation',
+            `${r.villeDepart ?? 'Trajet #' + r.trajetId}${r.villeArrivee ? ' → ' + r.villeArrivee : ''} · ${r.nombrePlaces} place(s)`);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  accepter(r: Reservation) {
+    const u = this.auth.currentUser();
+    if (!u || this.traitement()) return;
+    this.traitement.set(r.id);
+    // Le prix de la réservation (prix du trajet / du segment / négocié) fait foi.
+    this.rezSvc.accepter(r.id, u.compteId, Number(r.prixParPlace ?? 0)).subscribe({
+      next: maj => {
+        this.traitement.set(null);
+        this.retirerDemande(r.id);
+        this.toast.success('Réservation acceptée', `${maj.nombrePlaces} place(s) · ${fcfa(maj.montantTotal)} bloqués sur le compte du passager.`);
+      },
+      error: err => { this.traitement.set(null); this.toast.error("Impossible d'accepter", err); }
     });
   }
 
   refuser(r: Reservation) {
     const u = this.auth.currentUser();
-    if (!u) return;
+    if (!u || this.traitement()) return;
+    this.traitement.set(r.id);
     this.rezSvc.refuser(r.id, u.compteId).subscribe({
-      next: () => this.reservationsEnAttente.update(arr => arr.filter(x => x.id !== r.id)),
-      error: err => {
-        console.error('Erreur lors du refus de la réservation', err);     
-      }
+      next: () => {
+        this.traitement.set(null);
+        this.retirerDemande(r.id);
+        this.toast.info('Réservation refusée', 'Le passager a été prévenu.');
+      },
+      error: err => { this.traitement.set(null); this.toast.error('Impossible de refuser', err); }
     });
+  }
+
+  private retirerDemande(id: number) {
+    this.reservationsEnAttente.update(arr => arr.filter(x => x.id !== id));
+    this.demandesEnAttente.update(n => Math.max(0, n - 1));
   }
 
   demarrer(t: Trajet) {
     const u = this.auth.currentUser();
     if (!u) return;
     this.trajetSvc.demarrer(t.id, u.compteId).subscribe({
-      next: updated => this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x))
+      next: updated => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x)); this.toast.success('Trajet démarré'); },
+      error: err => this.toast.error('Impossible de démarrer', err)
     });
   }
 
@@ -179,15 +226,20 @@ export class ChauffeurDashboardComponent implements OnInit {
     const u = this.auth.currentUser();
     if (!u) return;
     this.trajetSvc.terminer(t.id, u.compteId).subscribe({
-      next: updated => this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x))
+      next: updated => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? updated : x)); this.toast.success('Trajet terminé'); },
+      error: err => this.toast.error('Impossible de terminer', err)
     });
   }
 
-  annuler(t: Trajet) {
+  async annuler(t: Trajet) {
     const u = this.auth.currentUser();
     if (!u) return;
+    const ok = await this.confirm.ask({ title: `Annuler ${t.villeDepart} → ${t.villeArrivee} ?`,
+      message: 'Les passagers seront prévenus et intégralement remboursés.', confirmLabel: 'Annuler le trajet', cancelLabel: 'Retour', danger: true });
+    if (!ok) return;
     this.trajetSvc.annuler(t.id, u.compteId).subscribe({
-      next: () => this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? {...x, statut: 'ANNULE' as any} : x))
+      next: () => { this.mesTrajets.update(arr => arr.map(x => x.id === t.id ? {...x, statut: 'ANNULE' as any} : x)); this.toast.success('Trajet annulé'); },
+      error: err => this.toast.error("Impossible d'annuler", err)
     });
   }
 

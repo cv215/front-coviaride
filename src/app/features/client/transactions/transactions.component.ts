@@ -18,6 +18,7 @@ export class TransactionsComponent implements OnInit{
   montantRetrait = signal(0);
   fraisRetrait   = signal(0);
   netRetrait     = signal(0);
+  operation = signal<'depot' | 'retrait'>('depot');
 
   depotLoading  = signal(false);
   depotError    = signal('');
@@ -53,6 +54,14 @@ export class TransactionsComponent implements OnInit{
     if (u) this.walletSvc.get(u.compteId).subscribe({
       next: w => this.wallet.set(w), error: () => {}
     });
+  }
+
+  setOperation(mode: 'depot' | 'retrait') {
+    this.operation.set(mode);
+    this.depotError.set('');
+    this.retraitError.set('');
+    this.depotSuccess.set('');
+    this.retraitSuccess.set('');
   }
 
   calculerFrais() {

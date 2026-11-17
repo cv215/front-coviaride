@@ -39,7 +39,7 @@
 /* ─── RESET & BASE ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 16px; scroll-behavior: smooth; }
+html { font-size: 16px; scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   font-family: var(--font-body);
@@ -47,7 +47,10 @@ body {
   color: var(--color-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
+
+* { max-width: none; }
 
 /* ─── TYPOGRAPHY ─────────────────────────────────────────────── */
 h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; }
@@ -364,10 +367,280 @@ input.field, select.field, textarea.field {
   }
 }
 
-/* ─── RESPONSIVE ─────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .auth-split { grid-template-columns: 1fr; .auth-hero-side { display: none; } }
+/* ─── RESPONSIVE GLOBALS ───────────────────────────────────── */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.dashboard-layout .dashboard-content {
+  min-width: 0;
+}
+
+.tracking-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 280px);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.tracking-map-panel {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  min-width: 0;
+}
+
+.tracking-map {
+  width: 100%;
+  height: 450px;
+}
+
+.tracking-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.messages-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 280px) minmax(360px, 1fr);
+  gap: 1.5rem;
+  min-height: 600px;
+  align-items: stretch;
+}
+
+.messages-layout .messages-list {
+  min-height: 600px;
+}
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.chauffeur-dashboard-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.course-form-grid,
+.vehicle-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.three-col-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.operator-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.remboursement-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 360px);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.driver-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.driver-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.admin-remboursement-details {
+  display: grid;
+  grid-template-columns: minmax(200px, 200px) minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-remboursement-decision {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 1180px) {
+  .main-layout .content { padding: 1.5rem; }
+  .topbar { padding-inline: 1.25rem; }
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    display: block;
+  }
+
+  .main-layout .content {
+    padding: 1rem;
+    overflow-x: hidden;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0.75rem;
+  }
+
+  .sidebar .nav-section {
+    flex-basis: 100%;
+  }
+
+  .sidebar .nav-item {
+    flex: 1 1 160px;
+    justify-content: center;
+    padding-inline: 1rem;
+  }
+
+  .dashboard-layout,
+  .tracking-layout,
+  .chauffeur-dashboard-main,
+  .admin-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-quick-actions {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .course-form-grid,
+  .vehicle-form-grid,
+  .two-col-grid,
+  .three-col-grid,
+  .operator-grid,
+  .remboursement-layout,
+  .driver-loading-grid,
+  .admin-remboursement-details,
+  .admin-remboursement-decision {
+    grid-template-columns: 1fr;
+  }
+
+  .three-col-grid {
+    gap: 1rem;
+  }
+
+  .tracking-map {
+    height: 360px;
+  }
+
+  .messages-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .messages-layout .messages-list {
+    min-height: auto;
+    max-height: 340px;
+  }
+
+  .stats-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    min-height: auto;
+    height: auto;
+    padding: 0.75rem 1rem;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .topbar .nav-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .topbar .logo {
+    font-size: 1rem;
+  }
+
+  .main-layout .content {
+    padding: 0.75rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-split { grid-template-columns: 1fr; }
+  .auth-split .auth-hero-side { display: none; }
   .auth-split .auth-form-side { padding: 2rem 1.5rem; max-width: 100%; }
-  .sidebar { display: none; }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .data-table {
+    display: block;
+    width: 100%; overflow-x: auto;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .btn {
+    width: auto;
+  }
+
+  .btn-full {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar .nav-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .sidebar .nav-item {
+    flex-basis: 100%;
+  }
+
+  .admin-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-split .auth-form-side h1 {
+    font-size: clamp(1.9rem, 9vw, 2.4rem);
+  }
 }

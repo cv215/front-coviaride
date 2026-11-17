@@ -12,18 +12,30 @@
     </div>
   }
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+  <div class="card" style="margin-bottom:1rem">
+    <div class="transaction-tabs" style="display:flex;gap:0.75rem;align-items:center;">
+      <button type="button" class="btn btn-sm" [class.btn-primary]="operation() === 'depot'" [class.btn-ghost]="operation() !== 'depot'" (click)="setOperation('depot')">
+        Dépôt
+      </button>
+      <button type="button" class="btn btn-sm" [class.btn-primary]="operation() === 'retrait'" [class.btn-ghost]="operation() !== 'retrait'" (click)="setOperation('retrait')">
+        Retrait
+      </button>
+    </div>
+  </div>
 
-    <!-- DÉPÔT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem"> Déposer des fonds</h3>
-      <div style="font-size:0.8rem;color:var(--color-muted);margin-bottom:1rem">
-        Minimum : 500 XAF · Aucun frais sur les dépôts
-      </div>
+  <div class="card">
+    <div class="transaction-form-header" style="margin-bottom:1rem">
+      <h3 style="margin:0">
+        {{ operation() === 'depot' ? 'Déposer des fonds' : 'Retirer des fonds' }}
+      </h3>
+      <span style="font-size:0.8rem;color:var(--color-muted)">
+        {{ operation() === 'depot' ? 'Minimum : 500 XAF · Aucun frais' : 'Minimum : 1 000 XAF' }}
+      </span>
+    </div>
+
+    @if (operation() === 'depot') {
       <form [formGroup]="depotForm" (ngSubmit)="deposer()">
-
-        <!-- CHOIX OPÉRATEUR -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="operator-grid">
           <button type="button" class="operateur-btn"
             [class.selected]="depotForm.get('moyen')?.value === 'MTN_MOMO'"
             (click)="depotForm.patchValue({moyen:'MTN_MOMO'})">
@@ -38,15 +50,14 @@
           </button>
         </div>
 
-        <div class="form-group" style="margin-bottom:1rem">
+        <div class="form-group" style="margin-top:1rem;margin-bottom:1rem">
           <label>Numéro de téléphone</label>
-          <input type="tel" class="field" formControlName="numeroTelephone"
-            placeholder="6XXXXXXXX"/>
+          <input type="tel" class="field" formControlName="numeroTelephone" placeholder="6XXXXXXXX"/>
         </div>
+
         <div class="form-group" style="margin-bottom:1.5rem">
           <label>Montant (XAF)</label>
-          <input type="number" class="field" formControlName="montant"
-            placeholder="Minimum 500 XAF" min="500"/>
+          <input type="number" class="field" formControlName="montant" placeholder="Minimum 500 XAF" min="500"/>
         </div>
 
         @if (depotError()) {
@@ -56,22 +67,13 @@
           <div class="alert alert-success" style="margin-bottom:1rem">{{ depotSuccess() }}</div>
         }
 
-        <button type="submit" class="btn btn-success btn-full"
-          [disabled]="depotLoading() || depotForm.invalid">
+        <button type="submit" class="btn btn-success btn-full" [disabled]="depotLoading() || depotForm.invalid">
           {{ depotLoading() ? 'Traitement...' : 'Déposer' }}
         </button>
       </form>
-    </div>
-
-    <!-- RETRAIT -->
-    <div class="card">
-      <h3 style="margin-bottom:1.5rem"> Retirer des fonds</h3>
-      <div style="font-size:0.8rem;color:var(--color-muted);margin-bottom:1rem">
-        Minimum : 1 000 XAF 
-      </div>
+    } @else {
       <form [formGroup]="retraitForm" (ngSubmit)="retirer()">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="operator-grid">
           <button type="button" class="operateur-btn"
             [class.selected]="retraitForm.get('moyen')?.value === 'MTN_MOMO'"
             (click)="retraitForm.patchValue({moyen:'MTN_MOMO'})">
@@ -86,21 +88,18 @@
           </button>
         </div>
 
-        <div class="form-group" style="margin-bottom:1rem">
+        <div class="form-group" style="margin-top:1rem;margin-bottom:1rem">
           <label>Numéro de téléphone</label>
-          <input type="tel" class="field" formControlName="numeroTelephone"
-            placeholder="6XXXXXXXX"/>
+          <input type="tel" class="field" formControlName="numeroTelephone" placeholder="6XXXXXXXX"/>
         </div>
+
         <div class="form-group" style="margin-bottom:0.5rem">
           <label>Montant (XAF)</label>
-          <input type="number" class="field" formControlName="montant"
-            placeholder="Minimum 1000 XAF" min="1000"
-            (input)="calculerFrais()"/>
+          <input type="number" class="field" formControlName="montant" placeholder="Minimum 1000 XAF" min="1000" (input)="calculerFrais()"/>
         </div>
 
         @if (montantRetrait() >= 1000) {
-          <div style="background:#FEF3C7;border-radius:8px;padding:0.75rem;
-            margin-bottom:1rem;font-size:0.85rem">
+          <div style="background:#FEF3C7;border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem">
             <div style="display:flex;justify-content:space-between">
               <span>Montant demandé</span>
               <strong>{{ montantRetrait() | number:'1.0-0' }} XAF</strong>
@@ -109,8 +108,7 @@
               <span>Frais 10%</span>
               <strong>- {{ fraisRetrait() | number:'1.0-0' }} XAF</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;
-              border-top:1px solid #F59E0B;margin-top:0.5rem;padding-top:0.5rem;font-weight:700">
+            <div style="display:flex;justify-content:space-between;border-top:1px solid #F59E0B;margin-top:0.5rem;padding-top:0.5rem;font-weight:700">
               <span>Vous recevez</span>
               <strong>{{ netRetrait() | number:'1.0-0' }} XAF</strong>
             </div>
@@ -124,11 +122,10 @@
           <div class="alert alert-success" style="margin-bottom:1rem">{{ retraitSuccess() }}</div>
         }
 
-        <button type="submit" class="btn btn-primary btn-full"
-          [disabled]="retraitLoading() || retraitForm.invalid">
+        <button type="submit" class="btn btn-primary btn-full" [disabled]="retraitLoading() || retraitForm.invalid">
           {{ retraitLoading() ? 'Traitement...' : 'Retirer' }}
         </button>
       </form>
-    </div>
+    }
   </div>
 </div>

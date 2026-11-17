@@ -1,4 +1,4 @@
-<div>
+<div class="rembourse">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:2rem">
     <a routerLink="/client/historique"
       style="color:var(--color-muted);text-decoration:none;font-size:0.9rem">
@@ -10,8 +10,7 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;
-    align-items:start">
+  <div class="remboursement-layout">
 
     <!-- ═══ FORMULAIRE ═══ -->
     <div class="card">
@@ -37,12 +36,12 @@
                 style="padding:1rem;border-radius:var(--radius-md);
                   cursor:pointer;transition:all 0.15s;border:2px solid"
                 [style.border-color]="rezChoisie()?.id===r.id
-                  ? 'var(--color-primary)' : 'var(--color-border)'"
+                  ? 'var(--color-success)' : 'var(--color-border)'"
                 [style.background]="rezChoisie()?.id===r.id
-                  ? 'var(--color-bg)' : 'transparent'">
+                  ? 'var(--color-success)' : 'transparent'">
                 <div style="display:flex;justify-content:space-between">
                   <div>
-                    <div style="font-weight:600">Trajet #{{ r.trajetId }}</div>
+                    <div style="font-weight:600">Trajet : de {{ r.villeDepart }} à {{ r.villeArrivee }}</div>
                     <div style="font-size:0.8rem;color:var(--color-muted)">
                       {{ r.dateReservation | date:'dd/MM/yyyy' }}
                       · {{ r.nombrePlaces }} place(s)
@@ -79,8 +78,8 @@
 
           <form [formGroup]="form" (ngSubmit)="soumettre()">
             <div class="form-group" style="margin-bottom:1rem">
-              <label>Motif *</label>
-              <select class="field" formControlName="motif">
+              <label style="color:white">Motif *</label>
+              <select style="background-color:black; color:rgba(88, 87, 87, 0.805)" class="field" formControlName="motif">
                 <option value="">-- Choisir un motif --</option>
                 @for (m of motifs; track m.value) {
                   <option [value]="m.value">{{ m.label }}</option>
@@ -98,7 +97,7 @@
                   (min. 20 caractères)
                 </span>
               </label>
-              <textarea class="field" formControlName="details" rows="5"
+              <textarea style="background-color:black; color:rgba(88, 87, 87, 0.805)" class="field" formControlName="details" rows="5"
                 placeholder="Expliquez précisément ce qui s'est passé...">
               </textarea>
               <div style="display:flex;justify-content:flex-end;
@@ -110,7 +109,7 @@
               }
             </div>
 
-            <div style="background:#EFF6FF;border:1px solid #BFDBFE;
+            <div style="background:black;border:1px solid #BFDBFE;
               border-radius:var(--radius-md);padding:0.875rem;
               margin-bottom:1.25rem;font-size:0.82rem;color:#1E40AF;
               display:flex;gap:0.5rem;align-items:flex-start">

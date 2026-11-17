@@ -1,15 +1,15 @@
 
-<div>
+<div class="messages-page">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:2rem">
     <a routerLink="/client/dashboard"
       style="color:var(--color-muted);text-decoration:none">← Retour</a>
     <h2>Messages</h2>
   </div>
 
-  <div style="display:grid;grid-template-columns:280px 1fr;gap:1.5rem;height:600px">
+  <div class="messages-layout">
 
     <!-- LISTE CONVERSATIONS -->
-    <div class="card" style="padding:0;overflow-y:auto">
+    <div class="card messages-list" style="padding:0;overflow-y:auto">
       <!-- Service Client -->
       <div class="conv-item"
         [class.active]="convActive()==='support'"
@@ -63,8 +63,9 @@
         @for (msg of messages(); track msg.id) {
           <div [style.align-self]="msg.moi ? 'flex-end' : 'flex-start'"
             style="max-width:70%">
-            <div [style.background]="msg.moi ? 'var(--color-primary)' : '#F3F4F6'"
-              [style.color]="msg.moi ? 'white' : 'var(--color-primary)'"
+            <div class="message-bubble"
+              [class.message-bubble--mine]="msg.moi"
+              [class.message-bubble--received]="!msg.moi"
               style="padding:0.6rem 0.875rem;border-radius:12px;font-size:0.9rem">
               {{ msg.contenu }}
             </div>

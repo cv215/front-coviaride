@@ -1,3 +1,27 @@
+  :host {
+    --color-primary: #d7b15a;
+    --color-surface: #14181f;
+    --color-bg: #0a0d12;
+    --color-border: rgba(212, 169, 76, 0.18);
+    --color-muted: #aeb6c2;
+    display: block;
+    color: #eef1f8;
+  }
+
+  .messages-page { color: #eef1f8; }
+
+  .message-bubble--mine {
+    background: var(--color-primary);
+    color: #101720;
+  }
+
+  .message-bubble--received {
+    background: rgba(255, 255, 255, 0.08);
+    color: #eef1f8;
+  }
+
+  .messages-page .field { color: #eef1f8; }
+
     .conv-item {
       display:flex; align-items:center; gap:0.75rem;
       padding:1rem; cursor:pointer; border-bottom:1px solid var(--color-border);

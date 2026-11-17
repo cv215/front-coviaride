@@ -16,30 +16,29 @@ declare const L: any;
   imports: [CommonModule, RouterLink],
   template: `
 <div>
-  <a routerLink="/client/dashboard"
-    style="color:var(--color-muted);text-decoration:none;
+  <a routerLink="/client/dashboard" style="color:var(--color-muted);text-decoration:none;
     font-size:0.9rem;display:block;margin-bottom:1rem">
     ← Retour
   </a>
   <h2 style="margin-bottom:0.25rem">Suivi en direct</h2>
   <p style="margin-bottom:1.5rem;color:var(--color-muted)">
-    Trajet #{{ trajetId() }}
+    @if (trajet()) {
+      {{ trajet().villeDepart }} → {{ trajet().villeArrivee }} · {{ trajet().dateDepart }} · {{ trajet().heureDepart }}
+    } @else {
+      Trajet #{{ trajetId() }}
+    }
   </p>
 
-  <div style="display:grid;grid-template-columns:1fr 280px;
-    gap:1.5rem;align-items:start">
+  <div class="tracking-layout">
 
     <!-- CARTE LEAFLET -->
-    <div style="border-radius:var(--radius-lg);
-      overflow:hidden;border:1px solid var(--color-border);
-      box-shadow:var(--shadow-md)">
-      <div #mapContainer id="map"
-        style="width:100%;height:450px">
+    <div class="tracking-map-panel">
+      <div #mapContainer id="map" class="tracking-map">
       </div>
     </div>
 
     <!-- PANNEAU DROITE -->
-    <div style="display:flex;flex-direction:column;gap:1rem">
+    <div class="tracking-side-panel">
 
       <!-- STATUT COURSE -->
       <div class="card">
@@ -92,8 +91,7 @@ declare const L: any;
       }
 
       <!-- INFOS MISE À JOUR -->
-      <div class="card"
-        style="background:var(--color-bg)">
+      <div class="card" style="background:var(--color-bg)">
         <div style="font-size:0.75rem;font-weight:700;
           text-transform:uppercase;letter-spacing:0.05em;
           color:var(--color-muted);margin-bottom:0.5rem">
@@ -129,6 +127,7 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   trajetId    = signal(0);
   position    = signal<any>(null);
+  trajet      = signal<any>(null);
   tempsEstime = signal(12);
   derniereMaj = signal('');
 
@@ -149,6 +148,11 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
     const id = +this.route.snapshot.paramMap.get('id')!;
     this.trajetId.set(id);
+
+    this.trajetSvc.getById(id).subscribe({
+      next: (journey: any) => this.trajet.set(journey),
+      error: () => this.trajet.set(null)
+    });
 
     // Premier fetch immédiat
     this.fetchPosition(id);
@@ -196,6 +200,15 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
         maxZoom: 19
       }
     ).addTo(this.map);
+
+    if (this.trajet()) {
+      const start = [this.trajet().latDepart ?? this.DEFAULT_LAT, this.trajet().lngDepart ?? this.DEFAULT_LNG];
+      const end = [this.trajet().latArrivee ?? this.DEFAULT_LAT, this.trajet().lngArrivee ?? this.DEFAULT_LNG];
+      const routeLine = L.polyline([start, end], { color: '#0D0D0D', weight: 4, opacity: 0.7, dashArray: '10 8' });
+      routeLine.addTo(this.map);
+      L.marker(start).addTo(this.map).bindPopup('<b>Départ</b>');
+      L.marker(end).addTo(this.map).bindPopup('<b>Destination</b>');
+    }
 
     // Icône personnalisée chauffeur
     const icone = L.divIcon({

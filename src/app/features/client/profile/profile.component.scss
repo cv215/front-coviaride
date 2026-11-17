@@ -2,3 +2,98 @@
       from { transform:rotate(0deg); }
       to   { transform:rotate(360deg); }
     }
+:host {
+  display: block;
+
+  --gold: #d7b15a;
+  --gold-soft: rgba(215, 177, 90, 0.12);
+  --card-bg: #14161c;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --row-border: rgba(255, 255, 255, 0.06);
+  --row-bg: rgba(255, 255, 255, 0.02);
+  --icon-bg-neutral: rgba(255, 255, 255, 0.04);
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.1);
+}
+
+// ── Carte identité ────────────────────────────────────────────────────────
+.card {
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+// ── Avatar / upload photo ────────────────────────────────────────────────
+label {
+  position: relative;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+// ── Lignes cliquables (adresses, réglages) ───────────────────────────────
+a[routerLink],
+button {
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+// Ligne "Se déconnecter" garde une teinte rouge au survol
+button:has(> div > div[style*="ef4444"]) {
+  &:hover {
+    background: var(--danger-soft);
+  }
+}
+
+// ── Adresses enregistrées ────────────────────────────────────────────────
+div[style*="border-radius:12px"][style*="background:rgba(255,255,255,0.02)"] {
+  transition: border-color 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--gold);
+    background: rgba(215, 177, 90, 0.05);
+  }
+}
+
+// ── Bouton "+" ajouter une adresse ───────────────────────────────────────
+.btn-ghost {
+  transition: transform 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    color: var(--gold);
+  }
+}
+
+// ── Bouton partager (code de parrainage) ─────────────────────────────────
+.btn-sm {
+  transition: background 0.2s ease, filter 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+// ── Alerte d'erreur ───────────────────────────────────────────────────────
+.alert-error {
+  border-radius: 10px;
+}
+
+// ── Responsive ─────────────────────────────────────────────────────────────
+@media (max-width: 640px) {
+  .card {
+    padding: 1.1rem !important;
+  }
+}
+
+.row-danger:hover {
+  background: var(--danger-soft);
+}

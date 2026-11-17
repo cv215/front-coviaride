@@ -1,4 +1,7 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { ToastService } from '../../../core/services/toast.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
+import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../core/services/admin.service';
@@ -64,14 +67,19 @@ import { Signalement } from '../../../core/models';
                 <textarea class="field" [(ngModel)]="resolutionTexte" rows="3"
                   placeholder="Saisissez la résolution..." style="margin-bottom:0.75rem"></textarea>
                 <div style="display:flex;gap:0.5rem">
-                  <button class="btn btn-success btn-sm" (click)="resoudre(s)">✓ Résoudre</button>
+                  <button class="btn btn-success btn-sm" (click)="resoudre(s)" [disabled]="busy() === s.id || resolutionTexte.trim().length < 5">✓ Résoudre</button>
                   <button class="btn btn-outline btn-sm" (click)="resolutionActive.set(null)">Annuler</button>
                 </div>
               </div>
             } @else {
-              <button class="btn btn-primary btn-sm" (click)="resolutionActive.set(s.id)">
-                Traiter ce signalement
-              </button>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" (click)="resolutionActive.set(s.id); resolutionTexte = ''">
+                  Traiter ce signalement
+                </button>
+                <button class="btn btn-danger btn-sm" (click)="bloquerMisEnCause(s)" [disabled]="busy() === s.id">
+                  Bloquer l'utilisateur #{{ s.misEnCauseId }}
+                </button>
+              </div>
             }
           }
 
@@ -99,6 +107,11 @@ export class SignalementsComponent implements OnInit {
     { value: 'REJETE', label: 'Rejetés' }
   ];
 
+  busy = signal<number | null>(null);
+  private toast = inject(ToastService);
+  private confirm = inject(ConfirmService);
+  private userSvc = inject(UtilisateurService);
+
   constructor(private adminSvc: AdminService) {}
 
   ngOnInit() { this.charger(); }
@@ -106,19 +119,47 @@ export class SignalementsComponent implements OnInit {
   charger() {
     this.loading.set(true);
     this.adminSvc.getSignalements(this.filtreStatut()).subscribe({
-      next: p => { this.signalements.set(p.content); this.loading.set(false); },
-      error: () => this.loading.set(false)
+      next: p => { this.signalements.set(p.content ?? []); this.loading.set(false); },
+      error: err => { this.loading.set(false); this.toast.error('Chargement impossible', err); }
     });
   }
 
   resoudre(s: Signalement) {
-    if (!this.resolutionTexte.trim()) return;
-    this.adminSvc.resoudreSignalement(s.id, this.resolutionTexte).subscribe({
+    const texte = this.resolutionTexte.trim();
+    if (texte.length < 5) return;
+    this.busy.set(s.id);
+    this.adminSvc.resoudreSignalement(s.id, texte).subscribe({
       next: updated => {
-        this.signalements.update(arr => arr.map(x => x.id === s.id ? updated : x));
+        this.busy.set(null);
         this.resolutionActive.set(null);
         this.resolutionTexte = '';
-      }
+        // Un signalement résolu quitte la liste des signalements ouverts.
+        if (this.filtreStatut() === 'OUVERT') {
+          this.signalements.update(arr => arr.filter(x => x.id !== s.id));
+        } else {
+          this.signalements.update(arr => arr.map(x => x.id === s.id ? updated : x));
+        }
+        this.toast.success('Signalement résolu', `#${s.id} · ${s.motif}`);
+      },
+      error: err => { this.busy.set(null); this.toast.error('Résolution impossible', err); }
+    });
+  }
+
+  async bloquerMisEnCause(s: Signalement) {
+    const ok = await this.confirm.ask({
+      title: `Bloquer l'utilisateur #${s.misEnCauseId} ?`,
+      message: `Suite au signalement « ${s.motif} ». L'utilisateur ne pourra plus se connecter.`,
+      confirmLabel: 'Bloquer', danger: true
+    });
+    if (!ok) return;
+    this.busy.set(s.id);
+    this.userSvc.changerStatut(s.misEnCauseId, 'BLOQUE').subscribe({
+      next: () => {
+        this.adminSvc.changerBlocageCompte(s.misEnCauseId, true).subscribe({ error: () => {} });
+        this.busy.set(null);
+        this.toast.success('Utilisateur bloqué', `#${s.misEnCauseId}`);
+      },
+      error: err => { this.busy.set(null); this.toast.error('Blocage impossible', err); }
     });
   }
 

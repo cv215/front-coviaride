@@ -1,7 +1,8 @@
+import { messageErreur } from '../../../core/services/toast.service';
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -41,10 +42,13 @@ import { AuthService } from '../../../core/services/auth.service';
     <div class="auth-footer" style="margin-top:0.5rem">
       Première connexion ? <a routerLink="/valider-compte">Activer mon compte</a>
     </div>
+    <div class="auth-footer" style="margin-top:0.5rem">
+      <a routerLink="/mot-de-passe-oublie">Mot de passe oublié ?</a>
+    </div>
   </div>
   <div class="auth-hero-side">
-    <div style="background:linear-gradient(135deg,#0D0D0D 0%,#1f1f2e 100%);width:100%;height:100%;display:flex;align-items:flex-end;padding:2rem">
-      <div class="hero-overlay" style="width:100%">
+    <div style="background-image:url('https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&q=80');background-size:cover;background-position:center;width:100%;height:100%;display:flex;align-items:flex-end;padding:2rem">
+      <div class="hero-overlay" style="width:100%;background:rgba(255,255,255,0.88)">
         <div class="hero-stats">
           <div class="stat"><div class="value">2,500+</div><div class="label">Chauffeurs</div></div>
           <div class="stat"><div class="value">4.9</div><div class="label">Note moyenne</div></div>
@@ -64,45 +68,37 @@ export class LoginComponent {
     email: ['', [Validators.required, Validators.email]],
     motDePasse: ['', Validators.required]
   });
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {}
+  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router, private route: ActivatedRoute) {
+    if (this.route.snapshot.queryParamMap.get('expire')) {
+      this.error.set('Votre session a expiré. Reconnectez-vous pour continuer.');
+    }
+  }
+
   submit() {
-    if (this.form.invalid) return;
-    this.loading.set(true); 
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.loading.set(true);
     this.error.set('');
     this.auth.connexion(this.form.value as any).subscribe({
       next: (res) => {
         this.loading.set(false);
         const role = res.role;
-        setTimeout(() => {
-          
-        if (role === 'SUPER_ADMIN'){
-          this.router.navigate(['/admin/dashboard']);
-        } 
-        else if (role === 'CHAUFFEUR' || role === 'PASSAGER_ET_CHAUFFEUR'){
-          this.router.navigate(['/chauffeur/dashboard']);
-        } 
-        else{
-          this.router.navigate(['/client/dashboard']);
+        const retour = this.route.snapshot.queryParamMap.get('retour');
+        const espace = role === 'SUPER_ADMIN' ? '/admin'
+          : (role === 'CHAUFFEUR' || role === 'PASSAGER_ET_CHAUFFEUR') ? '/chauffeur' : '/client';
+        if (retour && retour.startsWith(espace)) {
+          this.router.navigateByUrl(retour);
+        } else {
+          this.router.navigate([espace + '/dashboard']);
         }
-        }, 100)  
       },
-      error: (err) => { 
-        this.loading.set(false); 
-        if (err.status === 500) {
-          this.error.set('Erreur serveur, vérifiez les logs de service-auth'
-            + '(port 8081). Cause probable : champ null en base. ');
-        } else if (err.status === 401){
+      error: (err) => {
+        this.loading.set(false);
+        if (err.status === 401) {
           this.error.set('Email ou mot de passe incorrect. Veuillez réessayer.');
-        } else if (err.status === 403){
-          this.error.set('Compte non activé ou bloqué. ');
-        } else if (err.status === 0){
-          this.error.set('impossible de joindre le serveur. '
-            + 'Vérifiez que le service-auth (port 8081) est bien démarré');
+        } else {
+          this.error.set(messageErreur(err, 'Erreur de connexion.'));
         }
-        else{
-          this.error.set(err.error?.message || 'Erreur de connexion.');
-        }
-       }
+      }
     });
   }
 }

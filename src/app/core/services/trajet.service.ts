@@ -45,6 +45,15 @@ export class TrajetService {
     return this.http.get<any>(`${this.base}/${id}/position`);
   }
 
+  updatePosition(id: number, payload: {
+    latitude: number;
+    longitude: number;
+    vitesse: number;
+    positionActuelle?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.base}/${id}/tracking`, payload);
+  }
+
   getAllAdmin(page = 0): Observable<Page<Trajet>> {
     return this.http.get<Page<Trajet>>(`${this.base}/admin/tous?page=${page}`);
   }

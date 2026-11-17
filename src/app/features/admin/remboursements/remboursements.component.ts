@@ -1,4 +1,5 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
+import { ToastService } from '../../../core/services/toast.service';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import {
@@ -35,6 +36,8 @@ export class RemboursementsComponent implements OnInit {
     commentaire: ['', [Validators.required, Validators.minLength(5)]]
   });
 
+  private toast = inject(ToastService);
+
   constructor(
     private fb: FormBuilder,
     private rembSvc: RemboursementService
@@ -54,7 +57,7 @@ export class RemboursementsComponent implements OnInit {
         this.demandes.set(p.content);
         this.chargement.set(false);
       },
-      error: () => this.chargement.set(false)
+      error: err => { this.chargement.set(false); this.toast.error('Chargement impossible', err); }
     });
   }
 
@@ -82,6 +85,8 @@ export class RemboursementsComponent implements OnInit {
         }
         this.demandeOuverte.set(null);
         this.traitementLoading.set(false);
+        this.toast.success(v.accepte ? 'Remboursement accepté' : 'Demande refusée',
+          v.accepte ? `${updated.montant} FCFA crédités au passager #${updated.passagerId}` : `Demande #${d.id}`);
         // Rafraîchir stats
         this.rembSvc.getStats().subscribe({
           next: s => this.stats.set(s), error: () => {}

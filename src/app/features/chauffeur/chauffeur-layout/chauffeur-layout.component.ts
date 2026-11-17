@@ -1,4 +1,6 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -209,6 +211,11 @@ import { NotificationService } from '../../../core/services/notification.service
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Revenus
       </a>
+      <a routerLink="/chauffeur/profil" routerLinkActive="active" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profil
+      </a>
+      
       <div style="flex:1"></div>
       <button class="nav-item" (click)="logout()" style="width:100%;border:none;background:none;cursor:pointer;text-align:left;color:var(--color-danger)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -265,6 +272,7 @@ import { NotificationService } from '../../../core/services/notification.service
 `]
 })
 export class ChauffeurLayoutComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   nonLues          = signal(0);
   showNotifs       = signal(false);
   notifications    = signal<any[]>([]);
@@ -295,10 +303,10 @@ export class ChauffeurLayoutComponent implements OnInit {
     this.rafraichirNonLues(user.compteId);
 
     // Rafraîchir le compteur toutes les 30 secondes
-    setInterval(() => {
+    interval(30000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       const u = this.auth.currentUser();
-      if (u) this.rafraichirNonLues(u.compteId);
-    }, 30000);
+      if (u && !document.hidden) this.rafraichirNonLues(u.compteId);
+    });
   }
 
   // ── Compteur non lues ────────────────────────────────────────────────────

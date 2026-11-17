@@ -21,7 +21,7 @@ import { RouterLink } from '@angular/router';
   <section class="hero-section">
     <div class="hero-content">
       <h1>Votre chauffeur <em>express</em> avec sa voiture</h1>
-      <p class="hero-sub">Trouvez un chauffeur disponible avec son véhicule pour toutes vos trajets d'une ville à une autre en toute sécurité</p>
+      <p class="hero-sub">Trouvez un chauffeur disponible avec son véhicule pour tous vos trajets d'une ville à une autre en toute sécurité</p>
       <div class="search-box">
         <div class="input">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -36,7 +36,7 @@ import { RouterLink } from '@angular/router';
     </div>
     <div class="hero-image">
       <div class="hero-img-placeholder">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span class="hero-image-overlay"></span>
       </div>
     </div>
   </section>
@@ -85,8 +85,27 @@ import { RouterLink } from '@angular/router';
     .search-box { display:flex; flex-direction:column; gap:0.75rem; max-width:480px;
       .input { background:var(--color-bg); } }
 
-    .hero-image { background:#111; display:flex; align-items:center; justify-content:center; }
-    .hero-img-placeholder { svg { width:80px; height:80px; color:#444; } }
+    .hero-image {
+      background: #111;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:420px;
+      overflow:hidden;
+    }
+    .hero-img-placeholder {
+      width:100%;
+      height:100%;
+      min-height:420px;
+      background-image: url('https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&q=80');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+    }
 
     .features-section { display:grid; grid-template-columns:repeat(3,1fr);
       gap:2rem; padding:4rem 3rem; background:var(--color-surface); }
@@ -101,7 +120,9 @@ import { RouterLink } from '@angular/router';
       h2 { margin-bottom:0.75rem; } p { margin-bottom:2rem; } }
 
     @media(max-width:768px) {
-      .hero-section { grid-template-columns:1fr; .hero-image{display:none;} }
+      .hero-section { grid-template-columns:1fr; }
+      .hero-image { min-height:250px; display:flex; }
+      .hero-img-placeholder { min-height:250px; padding:1rem; }
       .hero-content { padding:2rem 1.5rem; }
       .features-section { grid-template-columns:1fr; padding:2rem 1.5rem; }
       .cta-section { padding:3rem 1.5rem; }
