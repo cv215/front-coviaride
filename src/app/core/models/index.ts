@@ -79,6 +79,19 @@ export interface Vehicule {
 }
 
 // ─── TRAJET ───────────────────────────────────────────────────────────────────
+/** Un client publie le voyage qu'il cherche ; les chauffeurs sont notifiés. */
+export interface DemandeVoyage {
+  id: number;
+  passagerId: number;
+  villeDepart: string;
+  villeArrivee: string;
+  dateSouhaitee?: string | null;
+  nombrePlaces: number;
+  commentaire?: string | null;
+  statut: 'OUVERTE' | 'ANNULEE' | 'EXPIREE';
+  dateCreation: string;
+}
+
 export interface Trajet {
   id: number;
   chauffeurId: number;

@@ -388,6 +388,10 @@ ajouterVehicule() {
   ) {
     // Bouton « Publier un trajet » de l'en-tête, y compris quand on est déjà sur cette page.
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(q => {
+      // Depuis une demande de voyage d'un client : le parcours est pré-rempli.
+      const depart = q.get('depart'), arrivee = q.get('arrivee'), date = q.get('date');
+      if (depart || arrivee) this.form.patchValue({ villeDepart: depart ?? '', villeArrivee: arrivee ?? '' });
+      if (date && date >= this.today) this.form.patchValue({ dateDepart: date });
       if (q.get('nouveau') && this.vehicules().length) this.showForm.set(true);
     });
     // Le nombre de places proposées ne peut pas dépasser la capacité du véhicule choisi.

@@ -9,7 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
-import { Reservation, Trajet, Portefeuille } from '../../../core/models';
+import { Reservation, Trajet, Portefeuille, DemandeVoyage } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { DecisionReservationComponent } from '../../../shared/components/decision-reservation/decision-reservation.component';
 import { ProfilsService } from '../../../core/services/profils.service';
@@ -150,6 +150,32 @@ const LIBELLES_TRAJET: Record<string, string> = { PLANIFIE: 'Planifié', EN_COUR
       </div>
     </section>
   </div>
+
+  <!-- Demandes de voyage publiées par les clients -->
+  <section class="lx-rise lx-rise-3">
+    <div class="lx-section-head">
+      <h2>Demandes de passagers</h2>
+      <span class="lx-muted" style="font-size:.8rem">Clients qui cherchent un trajet</span>
+    </div>
+    <div class="lx-stack-sm">
+      @for (d of demandesVoyage(); track d.id) {
+        <article class="lx-ride trip">
+          <span class="lx-icon-tile is-gold"><lx-icon name="users" /></span>
+          <span class="lx-list-body">
+            <span class="lx-list-title">{{ profils.nom(d.passagerId, 'Un client') }} cherche {{ d.villeDepart }} → {{ d.villeArrivee }}</span>
+            <span class="lx-list-sub cap">{{ d.dateSouhaitee ? (d.dateSouhaitee | date:'EEE d MMM') : 'Dès que possible' }} · {{ d.nombrePlaces }} place{{ d.nombrePlaces > 1 ? 's' : '' }}</span>
+            @if (d.commentaire) { <span class="lx-list-sub">« {{ d.commentaire }} »</span> }
+          </span>
+          <a class="lx-btn lx-btn-primary lx-btn-sm" routerLink="/chauffeur/courses"
+            [queryParams]="{ nouveau: 1, depart: d.villeDepart, arrivee: d.villeArrivee, date: d.dateSouhaitee || null }">
+            <lx-icon name="plus" /> Proposer ce trajet
+          </a>
+        </article>
+      } @empty {
+        <div class="lx-empty"><lx-icon name="users" /><p>Aucune demande de voyage pour le moment.</p></div>
+      }
+    </div>
+  </section>
 </div>`,
   styles: [`
     :host { display: block; }
@@ -199,6 +225,7 @@ export class ChauffeurDashboardComponent implements OnInit {
   portefeuille = signal<Portefeuille | null>(null);
   totalTrajets = signal(0);
   demandesEnAttente = signal(0);
+  demandesVoyage = signal<DemandeVoyage[]>([]);
 
   trajetEnCours = computed(() => this.mesTrajets().find(t => t.statut === 'EN_COURS') ?? null);
   trajetsAVenir = computed(() => this.mesTrajets()
@@ -218,13 +245,26 @@ export class ChauffeurDashboardComponent implements OnInit {
 
     this.walletSvc.get(u.compteId).subscribe({ next: w => this.portefeuille.set(w), error: () => {} });
     this.chargerDemandes(false);
+    this.chargerDemandesVoyage();
     // Nouvelles demandes détectées toutes les 20 s, avec notification.
     interval(20000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      if (!document.hidden) this.chargerDemandes(true);
+      if (!document.hidden) { this.chargerDemandes(true); this.chargerDemandesVoyage(); }
     });
     this.trajetSvc.getMesTrajets(u.compteId).subscribe({
       next: p => { this.mesTrajets.set(p?.content ?? []); this.totalTrajets.set(p?.totalElements ?? 0); },
       error: () => this.toast.error('Impossible de charger vos trajets')
+    });
+  }
+
+  private chargerDemandesVoyage() {
+    const moi = this.auth.currentUser()?.compteId;
+    this.trajetSvc.demandesOuvertes().subscribe({
+      next: p => {
+        const liste = (p?.content ?? []).filter(d => d.passagerId !== moi).slice(0, 6);
+        this.demandesVoyage.set(liste);
+        this.profils.charger(liste.map(d => d.passagerId));
+      },
+      error: () => {}
     });
   }
 

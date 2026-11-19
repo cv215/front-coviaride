@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Trajet, TrajetRequest, Page } from '../models';
+import { Trajet, TrajetRequest, Page, DemandeVoyage } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class TrajetService {
@@ -15,6 +15,26 @@ export class TrajetService {
       .set('villeDepart', villeDepart).set('villeArrivee', villeArrivee)
       .set('date', date).set('nbPlaces', nbPlaces).set('page', page);
     return this.http.get<Page<Trajet>>(`${this.base}/recherche`, { params });
+  }
+
+  // ─── Demandes de voyage ───────────────────────────────────────────────
+  publierDemande(passagerId: number, d: { villeDepart: string; villeArrivee: string; dateSouhaitee?: string | null; nombrePlaces?: number; commentaire?: string }): Observable<DemandeVoyage> {
+    return this.http.post<DemandeVoyage>(`${this.base}/demandes/passager/${passagerId}`, d);
+  }
+
+  mesDemandes(passagerId: number): Observable<DemandeVoyage[]> {
+    return this.http.get<DemandeVoyage[]>(`${this.base}/demandes/passager/${passagerId}`);
+  }
+
+  retirerDemande(id: number, passagerId: number): Observable<DemandeVoyage> {
+    return this.http.delete<DemandeVoyage>(`${this.base}/demandes/${id}/passager/${passagerId}`);
+  }
+
+  demandesOuvertes(villeDepart?: string, villeArrivee?: string, page = 0): Observable<Page<DemandeVoyage>> {
+    let params = new HttpParams().set('page', page);
+    if (villeDepart) params = params.set('villeDepart', villeDepart);
+    if (villeArrivee) params = params.set('villeArrivee', villeArrivee);
+    return this.http.get<Page<DemandeVoyage>>(`${this.base}/demandes/ouvertes`, { params });
   }
 
   getById(id: number): Observable<Trajet> {

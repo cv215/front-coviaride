@@ -9,7 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { Trajet } from '../../../core/models';
+import { DemandeVoyage, Trajet } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
@@ -266,6 +266,47 @@ function dateLocale(d = new Date()): string {
         </div>
       }
     </section>
+
+    <!-- ── Demande de voyage : les chauffeurs sont prévenus ─────────── -->
+    <section class="lx-card demande" [class.is-vide]="trajets().length === 0">
+      <span class="lx-icon-tile is-gold"><lx-icon name="bell" /></span>
+      <div class="demande-corps">
+        <h3 class="lx-card-title" style="margin:0">{{ trajets().length === 0 ? 'Publiez votre demande de voyage' : 'Aucun horaire ne vous convient ?' }}</h3>
+        <p class="lx-muted" style="margin:.3rem 0 0;font-size:.85rem">
+          Tous les chauffeurs sont prévenus tout de suite, même application fermée. Vous recevez une notification dès qu'un trajet {{ searchForm.value.villeDepart }} → {{ searchForm.value.villeArrivee }} est publié.
+        </p>
+        @if (demandeOk()) {
+          <div class="lx-alert lx-alert-success" style="margin-top:.85rem"><lx-icon name="check-circle" /> {{ demandeOk() }}</div>
+        } @else {
+          <div class="demande-form">
+            <input class="lx-input" [(ngModel)]="commentaireDemande" [ngModelOptions]="{ standalone: true }" maxlength="300"
+              placeholder="Précision pour les chauffeurs (facultatif) : heure, bagages…" aria-label="Précision pour les chauffeurs">
+            <button type="button" class="lx-btn lx-btn-primary" (click)="publierDemande()" [disabled]="demandeLoading()">
+              @if (demandeLoading()) { <lx-icon name="refresh" class="lx-spin" /> Publication… } @else { <lx-icon name="send" /> Publier ma demande }
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (mesDemandes().length) {
+    <section class="results">
+      <div class="lx-section-head"><h3>Mes demandes en cours</h3></div>
+      <div class="lx-stack">
+        @for (d of mesDemandes(); track d.id) {
+          <article class="lx-card demande-ligne">
+            <div class="min-w-0">
+              <div style="font-weight:500">{{ d.villeDepart }} → {{ d.villeArrivee }}</div>
+              <div class="lx-muted" style="font-size:.78rem">
+                {{ d.dateSouhaitee ? (d.dateSouhaitee | date:'EEE d MMM':'':'fr') : 'Dès que possible' }} · {{ d.nombrePlaces }} place{{ d.nombrePlaces > 1 ? 's' : '' }}
+              </div>
+            </div>
+            <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="retirerDemande(d)">Retirer</button>
+          </article>
+        }
+      </div>
+    </section>
   }
 </div>
   `,
@@ -280,6 +321,12 @@ function dateLocale(d = new Date()): string {
       lx-icon { color: var(--lx-emerald); }
     }
     .results { margin-top: 2rem; }
+    .demande { display: flex; gap: 1rem; align-items: flex-start; padding: 1.25rem 1.5rem; margin-top: 1.25rem;
+      &.is-vide { border-color: rgba(200, 146, 42, 0.35); } }
+    .demande-corps { flex: 1; min-width: 0; }
+    .demande-form { display: flex; gap: 0.6rem; margin-top: 0.9rem; flex-wrap: wrap;
+      .lx-input { flex: 1 1 240px; } }
+    .demande-ligne { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.9rem 1.1rem; }
 
     .trip { padding: 1.25rem 1.5rem; &.is-open { border-color: rgba(200, 146, 42, 0.35); } }
     .trip-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
@@ -339,6 +386,10 @@ export class NewCourseComponent implements OnInit {
   prixPropose: number | null = null;
   selectedStop      = signal<string | null>(null);
   today             = dateLocale();
+  demandeLoading    = signal(false);
+  demandeOk         = signal('');
+  mesDemandes       = signal<DemandeVoyage[]>([]);
+  commentaireDemande = '';
 
   searchForm = this.fb.group({
     villeDepart:  ['', Validators.required],
@@ -364,8 +415,53 @@ export class NewCourseComponent implements OnInit {
     const places = Number(q.get('places'));
     if (depart) this.searchForm.patchValue({ villeDepart: depart });
     if (arrivee) this.searchForm.patchValue({ villeArrivee: arrivee });
+    const date = q.get('date');
     if (places >= 1 && places <= 4) this.searchForm.patchValue({ nbPlaces: String(places) });
+    if (date && date >= this.today) this.searchForm.patchValue({ date });
     if (depart && arrivee) this.rechercher();
+    this.chargerDemandes();
+  }
+
+  private chargerDemandes() {
+    const u = this.auth.currentUser();
+    if (!u) return;
+    this.trajetSvc.mesDemandes(u.compteId).subscribe({
+      next: l => this.mesDemandes.set((l ?? []).filter(d => d.statut === 'OUVERTE')),
+      error: () => {}
+    });
+  }
+
+  publierDemande() {
+    const u = this.auth.currentUser();
+    const v = this.searchForm.value;
+    if (!u || !v.villeDepart?.trim() || !v.villeArrivee?.trim()) return;
+    this.demandeLoading.set(true);
+    this.trajetSvc.publierDemande(u.compteId, {
+      villeDepart: v.villeDepart.trim(), villeArrivee: v.villeArrivee.trim(),
+      dateSouhaitee: v.date || null, nombrePlaces: this.nbPlaces(),
+      commentaire: this.commentaireDemande.trim() || undefined
+    }).subscribe({
+      next: d => {
+        this.demandeLoading.set(false);
+        this.commentaireDemande = '';
+        this.demandeOk.set(`Demande publiée : les chauffeurs sont prévenus. Vous serez notifié dès qu'un trajet ${d.villeDepart} → ${d.villeArrivee} est publié.`);
+        this.mesDemandes.update(l => [d, ...l]);
+        this.toast.success('Demande publiée', 'Les chauffeurs viennent d\'être notifiés.');
+      },
+      error: err => {
+        this.demandeLoading.set(false);
+        this.toast.error('Publication impossible', err);
+      }
+    });
+  }
+
+  retirerDemande(d: DemandeVoyage) {
+    const u = this.auth.currentUser();
+    if (!u) return;
+    this.trajetSvc.retirerDemande(d.id, u.compteId).subscribe({
+      next: () => { this.mesDemandes.update(l => l.filter(x => x.id !== d.id)); this.toast.info('Demande retirée'); },
+      error: err => this.toast.error('Action impossible', err)
+    });
   }
 
   nbPlaces(): number {
@@ -378,6 +474,7 @@ export class NewCourseComponent implements OnInit {
     this.searched.set(false);
     this.erreurRecherche.set('');
     this.trajetSelectionne.set(null);
+    this.demandeOk.set('');
     const v = this.searchForm.value;
 
     this.trajetSvc.rechercher(

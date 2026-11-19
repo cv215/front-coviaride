@@ -6,6 +6,8 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { IconComponent } from '../icon/icon.component';
+import { PushService } from '../../../core/services/push.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 export interface ShellNavItem {
   path: string;
@@ -139,6 +141,30 @@ export interface ShellAction { path: string; icon: string; label: string; query?
     </header>
 
     <main class="page-content" [class.is-wide]="large()">
+      @if (notifications() && push.etat() === 'a-activer' && !bandeauMasque()) {
+        <div class="push-banner lx-card" role="status">
+          <span class="lx-icon-tile is-gold"><lx-icon name="bell" /></span>
+          <div class="push-text">
+            <strong>Activez les notifications</strong>
+            <span>Soyez prévenu des nouvelles annonces et demandes de voyage, même application fermée.</span>
+          </div>
+          <div class="push-actions">
+            <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="masquerBandeau()">Plus tard</button>
+            <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="activerPush()" [disabled]="activationPush()">Activer</button>
+          </div>
+        </div>
+      } @else if (notifications() && push.etat() === 'refuse' && !bandeauMasque()) {
+        <div class="push-banner lx-card" role="status">
+          <span class="lx-icon-tile"><lx-icon name="bell" /></span>
+          <div class="push-text">
+            <strong>Notifications bloquées</strong>
+            <span>Autorisez les notifications pour ce site dans les réglages du navigateur afin de recevoir les nouvelles annonces même application fermée.</span>
+          </div>
+          <div class="push-actions">
+            <button class="lx-btn lx-btn-ghost lx-btn-sm" (click)="masquerBandeau()">Compris</button>
+          </div>
+        </div>
+      }
       <ng-content />
     </main>
   </div>
@@ -298,12 +324,17 @@ export interface ShellAction { path: string; icon: string; label: string; query?
     .main { margin-left: 0; }
     .menu-btn { display: inline-flex; }
     .cta-btn { display: none; }
+    .push-banner { flex-wrap: wrap; }
     .bar-inner { padding: 0.85rem 1rem; }
     .page-title { font-size: 1.25rem; }
     .page-content { padding: 1.5rem 1rem calc(5.5rem + env(safe-area-inset-bottom)); }
     .bottom-nav { display: flex; }
     .notif-panel { top: 64px; right: 1rem; }
   }
+  .push-banner { display: flex; align-items: center; gap: 0.9rem; padding: 0.9rem 1rem; margin-bottom: 1.25rem; }
+  .push-text { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 200px; font-size: 0.85rem; }
+  .push-text span { color: var(--lx-muted-fg, inherit); opacity: 0.8; }
+  .push-actions { display: flex; gap: 0.5rem; margin-left: auto; }
   `]
 })
 export class AppShellComponent implements OnInit {
@@ -311,6 +342,10 @@ export class AppShellComponent implements OnInit {
   private notifSvc = inject(NotificationService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  readonly push = inject(PushService);
+  private toast = inject(ToastService);
+  activationPush = signal(false);
+  bandeauMasque = signal(this.lireMasque());
 
   /** Libellé court affiché à côté du logo (ex : « Chauffeur », « Admin »). */
   espace = input<string>('');
@@ -368,6 +403,8 @@ export class AppShellComponent implements OnInit {
   ngOnInit() {
     const user = this.auth.currentUser();
     if (!user || !this.notifications()) return;
+    // Notifications déjà autorisées : ce navigateur est (ré)abonné en silence.
+    this.push.synchroniser();
     this.rafraichirNonLues(user.compteId);
     interval(30000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       const u = this.auth.currentUser();
@@ -434,5 +471,35 @@ export class AppShellComponent implements OnInit {
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   }
 
-  logout() { this.auth.deconnexion(); }
+  async logout() {
+    // Ce navigateur ne doit plus recevoir les notifications de ce compte.
+    await Promise.race([this.push.desactiver(), new Promise(r => setTimeout(r, 1500))]);
+    this.auth.deconnexion();
+  }
+
+  async activerPush() {
+    this.activationPush.set(true);
+    try {
+      const etat = await this.push.activer();
+      if (etat === 'actif') this.toast.success('Notifications activées', 'Vous serez prévenu même application fermée.');
+      else if (etat === 'refuse') this.toast.warning('Notifications bloquées', 'Autorisez-les dans les réglages du navigateur pour ce site.');
+    } catch (err) {
+      this.toast.error('Activation impossible pour le moment', err);
+    } finally {
+      this.activationPush.set(false);
+    }
+  }
+
+  masquerBandeau() {
+    this.bandeauMasque.set(true);
+    try { localStorage.setItem('ce_push_bandeau', String(Date.now())); } catch { /* stockage indisponible */ }
+  }
+
+  /** Le bandeau masqué revient après 7 jours. */
+  private lireMasque(): boolean {
+    try {
+      const t = Number(localStorage.getItem('ce_push_bandeau') ?? 0);
+      return !!t && Date.now() - t < 7 * 24 * 3600 * 1000;
+    } catch { return false; }
+  }
 }
