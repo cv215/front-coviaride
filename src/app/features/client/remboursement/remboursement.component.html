@@ -5,7 +5,7 @@
       <h2>Demande de remboursement</h2>
       <p>Un souci sur une course terminée ? Décrivez-le : réponse sous 48 h ouvrées.</p>
     </div>
-    <a routerLink="/client/historique" class="lx-btn lx-btn-secondary"><lx-icon name="history" /> Mes courses</a>
+    <a [routerLink]="base + '/historique'" class="lx-btn lx-btn-secondary"><lx-icon name="history" /> Mes courses</a>
   </div>
 
   @if (msgSuccess()) {

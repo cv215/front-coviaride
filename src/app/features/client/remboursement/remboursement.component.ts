@@ -1,7 +1,8 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { espaceDe } from '../../../core/services/espace';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReservationService } from '../../../core/services/reservation.service';
 import {
@@ -48,8 +49,14 @@ export class RemboursementComponent implements OnInit{
     private fb: FormBuilder,
     private auth: AuthService,
     private rezSvc: ReservationService,
-    private rembSvc: RemboursementService
-  ) {}
+    private rembSvc: RemboursementService,
+    private route: ActivatedRoute,
+    router: Router
+  ) {
+    this.base = espaceDe(router.url);
+  }
+
+  readonly base: string;
 
   ngOnInit() {
     const u = this.auth.currentUser();
@@ -57,8 +64,11 @@ export class RemboursementComponent implements OnInit{
 
     this.rezSvc.getMesReservations(u.compteId).subscribe({
       next: p => {
-        this.reservations.set(
-          p.content.filter(r => r.statut === 'TERMINEE'));
+        // Plainte possible dès que le trajet est payé (acceptée), pendant ou après la course.
+        const eligibles = p.content.filter(r => r.statut === 'TERMINEE' || r.statut === 'ACCEPTEE');
+        this.reservations.set(eligibles);
+        const id = Number(this.route.snapshot.queryParamMap.get('reservation'));
+        if (id) this.rezChoisie.set(eligibles.find(r => r.id === id) ?? null);
         this.chargementRez.set(false);
       },
       error: () => this.chargementRez.set(false)

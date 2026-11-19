@@ -7,6 +7,7 @@ import { interval, Subscription } from 'rxjs';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { GeoService, Itineraire, Point } from '../../../core/services/geo.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { espaceDe } from '../../../core/services/espace';
 
 declare const L: any;
 
@@ -165,8 +166,9 @@ export class TrackingComponent implements OnInit, AfterViewInit, OnDestroy {
   private trajetSvc = inject(TrajetService);
   private geo = inject(GeoService);
 
-  readonly espaceChauffeur = this.router.url.startsWith('/chauffeur');
-  readonly retour = this.espaceChauffeur ? '/chauffeur/courses' : '/client/historique';
+  /** Vue chauffeur de son propre trajet ; un chauffeur qui a réservé une place arrive avec ?vue=passager. */
+  readonly espaceChauffeur = this.router.url.startsWith('/chauffeur') && !this.router.url.includes('vue=passager');
+  readonly retour = this.espaceChauffeur ? '/chauffeur/courses' : espaceDe(this.router.url) + '/historique';
 
   trajetId = signal(0);
   trajet = signal<any>(null);

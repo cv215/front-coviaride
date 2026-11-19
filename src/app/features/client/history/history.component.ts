@@ -12,6 +12,7 @@ import { Reservation } from '../../../core/models';
 import { environment } from '../../../../environments/environment';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { ProfilsService } from '../../../core/services/profils.service';
+import { espaceDe } from '../../../core/services/espace';
 
 type Filtre = 'a-venir' | 'terminees' | 'annulees' | 'toutes';
 type ActionConfirm = { type: 'annuler' | 'embarquer' | 'arriver'; rez: Reservation } | null;
@@ -34,13 +35,13 @@ const LIBELLES: Record<Reservation['statut'], string> = {
     <div>
       <span class="lx-eyebrow">Mes trajets</span>
       <h2>Suivi de mes courses</h2>
-      <p>Suivez vos réservations, confirmez votre embarquement et votre arrivée.</p>
+      <p>Suivez vos réservations, confirmez votre départ et votre arrivée.</p>
     </div>
     <div class="lx-row">
       <button class="lx-btn lx-btn-secondary" (click)="charger(true)" [disabled]="loading()" aria-label="Actualiser">
         <lx-icon name="refresh" [class.lx-spin]="loading()" /> Actualiser
       </button>
-      <a class="lx-btn lx-btn-primary" routerLink="/client/nouvelle-course"><lx-icon name="plus" /> Nouvelle course</a>
+      <a class="lx-btn lx-btn-primary" [routerLink]="base + '/nouvelle-course'"><lx-icon name="plus" /> Nouvelle course</a>
     </div>
   </div>
 
@@ -70,7 +71,7 @@ const LIBELLES: Record<Reservation['statut'], string> = {
     <div class="lx-empty">
       <lx-icon name="car" />
       <p>{{ filtre() === 'a-venir' ? 'Aucune course à venir.' : 'Aucune course dans cette catégorie.' }}</p>
-      <a class="lx-btn lx-btn-primary lx-btn-sm" routerLink="/client/nouvelle-course"><lx-icon name="plus" /> Réserver un trajet</a>
+      <a class="lx-btn lx-btn-primary lx-btn-sm" [routerLink]="base + '/nouvelle-course'"><lx-icon name="plus" /> Réserver un trajet</a>
     </div>
   } @else {
     <div class="lx-stack-sm">
@@ -141,14 +142,20 @@ const LIBELLES: Record<Reservation['statut'], string> = {
                 <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
               }
               @case ('ACCEPTEE') {
-                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="['/client/suivi', r.trajetId]"><lx-icon name="navigation" /> Suivre</a>
-                <a class="lx-btn lx-btn-secondary lx-btn-sm" routerLink="/client/messages" [queryParams]="{ avec: r.chauffeurId }"><lx-icon name="message" /> Message</a>
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="[base + '/suivi', r.trajetId]" [queryParams]="{ vue: 'passager' }"><lx-icon name="navigation" /> Suivre</a>
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="base + '/messages'" [queryParams]="{ avec: r.chauffeurId }"><lx-icon name="message" /> Message</a>
                 @if (!r.embarquementConfirme) {
                   <button class="lx-btn lx-btn-danger lx-btn-sm" (click)="demander('annuler', r)" [disabled]="busy() === r.id">Annuler</button>
-                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('embarquer', r)" [disabled]="busy() === r.id">Je suis monté</button>
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('embarquer', r)" [disabled]="busy() === r.id">Nous sommes partis</button>
                 } @else {
-                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('arriver', r)" [disabled]="busy() === r.id">Je suis arrivé</button>
+                  <button class="lx-btn lx-btn-primary lx-btn-sm" (click)="demander('arriver', r)" [disabled]="busy() === r.id">Nous sommes arrivés</button>
                 }
+                @if (r.plainteOuverte) {
+                  <span class="hint"><lx-icon name="alert" [size]="14" /> Problème signalé : le paiement du chauffeur est suspendu.</span>
+                } @else if (r.dateArriveeDeclaree) {
+                  <span class="hint">Le chauffeur a déclaré l'arrivée. Sans signalement de votre part, il sera payé 4 h après.</span>
+                }
+                <a class="lx-btn lx-btn-ghost lx-btn-sm" [routerLink]="base + '/remboursement'" [queryParams]="{ reservation: r.id }">Signaler un problème</a>
               }
               @case ('TERMINEE') {
                 @if (notees().has(r.id)) {
@@ -170,11 +177,11 @@ const LIBELLES: Record<Reservation['statut'], string> = {
                   </div>
                 } @else {
                   <button class="lx-btn lx-btn-secondary lx-btn-sm" (click)="ouvrirNotation(r)"><lx-icon name="star" /> Noter le chauffeur</button>
-                  <a class="lx-btn lx-btn-ghost lx-btn-sm" routerLink="/client/remboursement">Un problème ? Remboursement</a>
+                  <a class="lx-btn lx-btn-ghost lx-btn-sm" [routerLink]="base + '/remboursement'" [queryParams]="{ reservation: r.id }">Un problème ? Remboursement</a>
                 }
               }
               @default {
-                <a class="lx-btn lx-btn-secondary lx-btn-sm" routerLink="/client/nouvelle-course"
+                <a class="lx-btn lx-btn-secondary lx-btn-sm" [routerLink]="base + '/nouvelle-course'"
                   [queryParams]="{ depart: r.villeDepart, arrivee: r.villeArrivee, places: r.nombrePlaces }"><lx-icon name="rotate-ccw" /> Réserver à nouveau</a>
               }
             }
@@ -255,6 +262,8 @@ export class HistoryComponent implements OnInit {
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
   router = inject(Router);
+  /** '/client', '/chauffeur' ou '/admin' : un chauffeur ou un admin peut aussi réserver. */
+  readonly base = espaceDe(this.router.url);
   profils = inject(ProfilsService);
 
   loading = signal(true);
@@ -387,7 +396,7 @@ export class HistoryComponent implements OnInit {
   }
 
   titreConfirmation(c: NonNullable<ActionConfirm>): string {
-    return { annuler: 'Annuler cette réservation ?', embarquer: 'Confirmer votre embarquement ?', arriver: 'Confirmer votre arrivée ?' }[c.type];
+    return { annuler: 'Annuler cette réservation ?', embarquer: 'Confirmer votre départ ?', arriver: 'Confirmer votre arrivée ?' }[c.type];
   }
 
   texteConfirmation(c: NonNullable<ActionConfirm>): string {
@@ -398,9 +407,9 @@ export class HistoryComponent implements OnInit {
           ? `Le chauffeur a déjà accepté : des frais d'annulation (500 FCFA max) seront retenus, le reste de ${m} vous sera rendu.`
           : "Aucun frais : le chauffeur n'a pas encore accepté votre demande.";
       case 'embarquer':
-        return `Confirmez seulement si vous êtes dans le véhicule. 50 % de ${m} seront versés au chauffeur.`;
+        return `Confirmez seulement si vous êtes partis avec le chauffeur. 50 % de ${m} passeront sur son compte disponible (le reste reste bloqué jusqu'à l'arrivée).`;
       case 'arriver':
-        return `Le solde de ${m} sera versé au chauffeur et la course sera clôturée.`;
+        return `40 % de ${m} seront versés au chauffeur et 10 % de commission à la plateforme. La course sera clôturée.`;
     }
   }
 
@@ -419,7 +428,7 @@ export class HistoryComponent implements OnInit {
         this.busy.set(null);
         this.reservations.update(list => list.map(r => r.id === maj.id ? { ...r, ...maj } : r));
         this.statutsConnus.set(maj.id, maj.statut);
-        const msg = { annuler: 'Réservation annulée', embarquer: 'Bon voyage ! Embarquement confirmé', arriver: 'Course terminée, merci !' }[c.type];
+        const msg = { annuler: 'Réservation annulée', embarquer: 'Bon voyage ! Départ confirmé', arriver: 'Course terminée, merci !' }[c.type];
         this.toast.success(msg);
         if (c.type === 'arriver') { this.filtre.set('terminees'); this.ouvrirNotation(maj); }
       },

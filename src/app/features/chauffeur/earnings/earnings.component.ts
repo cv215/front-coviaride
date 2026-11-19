@@ -28,13 +28,16 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
         <span class="lx-mono brand">COVIARIDE · CHAUFFEUR</span>
         <span class="lx-icon-tile is-gold"><lx-icon name="wallet" /></span>
       </div>
-      <div class="lx-muted" style="font-size:.8rem;margin-top:1.25rem">Solde disponible</div>
+      <div class="lx-muted" style="font-size:.8rem;margin-top:1.25rem">Compte disponible · seul solde retirable</div>
       <div class="amount lx-display">{{ (wallet()?.soldeDisponible ?? 0) | number:'1.0-0' }} <span>FCFA</span></div>
     </section>
     <section class="lx-stat">
       <lx-icon name="lock" style="color:var(--lx-amber)" />
       <div class="lx-stat-value">{{ (wallet()?.soldeBloque ?? 0) | number:'1.0-0' }} F</div>
-      <div class="lx-stat-label">fonds bloqués · en attente de versement</div>
+      <div class="lx-stat-label">compte bloqué · visible, non retirable</div>
+      <div class="lx-muted" style="font-size:.72rem;margin-top:.35rem;line-height:1.4">
+        50 % passent au disponible au départ confirmé par le client, 40 % à l'arrivée (ou 4 h après sans plainte). 10 % de commission plateforme.
+      </div>
     </section>
     <section class="lx-stat">
       <lx-icon name="arrow-down-left" style="color:var(--lx-emerald)" />
@@ -205,7 +208,7 @@ export class EarningsComponent implements OnInit {
   transactions = signal<Transaction[]>([]);
   mode = signal<'retrait' | 'depot'>('retrait');
   totalRecu = computed(() => this.transactions()
-    .filter(t => t.statut === 'EFFECTUEE' && ['RECEPTION_PAIEMENT', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE'].includes(t.type))
+    .filter(t => t.statut === 'EFFECTUEE' && ['RECEPTION_PAIEMENT', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE', 'DEBLOCAGE_40_ARRIVEE', 'INDEMNITE_ANNULATION'].includes(t.type))
     .reduce((s, t) => s + Number(t.montant ?? 0), 0));
   private toast = inject(ToastService);
 
@@ -228,13 +231,16 @@ export class EarningsComponent implements OnInit {
 
   estCredit(type: string) {
     // La commission est prélevée sur le chauffeur : c'est un débit, pas un crédit.
-    return ['DEPOT', 'RECEPTION_PAIEMENT', 'REMBOURSEMENT', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE'].includes(type);
+    return ['DEPOT', 'RECEPTION_PAIEMENT', 'REMBOURSEMENT', 'BLOCAGE_FONDS', 'DEBLOCAGE_50_DEPART', 'DEBLOCAGE_50_ARRIVEE',
+            'DEBLOCAGE_40_ARRIVEE', 'INDEMNITE_ANNULATION'].includes(type);
   }
 
   libelleType(type: string) {
     return ({
       DEPOT: 'Dépôt', RETRAIT: 'Retrait', RECEPTION_PAIEMENT: 'Paiement reçu', PAIEMENT_TRAJET: 'Paiement trajet',
-      BLOCAGE_FONDS: 'Fonds bloqués', DEBLOCAGE_50_DEPART: 'Versement départ', DEBLOCAGE_50_ARRIVEE: 'Versement arrivée',
+      BLOCAGE_FONDS: 'Reçu sur le compte bloqué', DEBLOCAGE_50_DEPART: 'Départ · 50 % débloqués', DEBLOCAGE_50_ARRIVEE: 'Versement arrivée',
+      DEBLOCAGE_40_ARRIVEE: 'Arrivée · 40 % débloqués', PRELEVEMENT_COMMISSION: 'Commission 10 %',
+      RESTITUTION_PASSAGER: 'Rendu au passager', INDEMNITE_ANNULATION: "Indemnité d'annulation",
       COMMISSION_PLATEFORME: 'Commission', REMBOURSEMENT: 'Remboursement'
     } as Record<string, string>)[type] ?? type;
   }

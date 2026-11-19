@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router, ActivatedRoute } from '@angular/router';
+import { espaceDe } from '../../../core/services/espace';
 import { HttpClient } from '@angular/common/http';
 import { TrajetService } from '../../../core/services/trajet.service';
 import { ReservationService } from '../../../core/services/reservation.service';
@@ -237,7 +238,7 @@ function dateLocale(d = new Date()): string {
                           @if (aReserve() && chauffeur()?.telephone) {
                             <div style="margin-top:.35rem;font-weight:600">Chauffeur : {{ chauffeur()!.telephone }}</div>
                           }
-                          <a routerLink="/client/historique" class="lx-link" style="margin-top:.4rem">Suivre ma réservation <lx-icon name="arrow-right" /></a>
+                          <a [routerLink]="base + '/historique'" class="lx-link" style="margin-top:.4rem">Suivre ma réservation <lx-icon name="arrow-right" /></a>
                         </div>
                       </div>
                     }
@@ -318,6 +319,8 @@ function dateLocale(d = new Date()): string {
 export class NewCourseComponent implements OnInit {
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  /** '/client', '/chauffeur' ou '/admin' : un chauffeur ou un admin peut aussi réserver. */
+  readonly base = espaceDe(inject(Router).url);
 
   loading           = signal(false);
   searched          = signal(false);

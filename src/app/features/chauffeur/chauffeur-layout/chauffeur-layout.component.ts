@@ -19,7 +19,7 @@ import { AppShellComponent, ShellNavItem } from '../../../shared/components/app-
   [nom]="nomComplet()"
   [salutation]="salutation()"
   [navPrincipale]="navPrincipale"
-  [titresSupplementaires]="{ '/chauffeur/suivi': 'Carte du trajet' }"
+  [titresSupplementaires]="{ '/chauffeur/suivi': 'Carte du trajet', '/chauffeur/nouvelle-course': 'Réserver un trajet', '/chauffeur/remboursement': 'Signaler un problème' }"
   [action]="{ path: '/chauffeur/courses', icon: 'plus', label: 'Publier un trajet', query: { nouveau: '1' } }">
   <router-outlet />
 </lx-app-shell>
@@ -29,6 +29,7 @@ export class ChauffeurLayoutComponent implements OnInit {
   readonly navPrincipale: ShellNavItem[] = [
     { path: '/chauffeur/dashboard', icon: 'home',    label: 'Accueil',  titre: '' },
     { path: '/chauffeur/courses',   icon: 'route',   label: 'Courses',  titre: 'Mes courses' },
+    { path: '/chauffeur/historique', icon: 'history', label: 'Réserver', titre: 'Mes réservations' },
     { path: '/chauffeur/revenus',   icon: 'wallet',  label: 'Revenus',  titre: 'Revenus' },
     { path: '/chauffeur/messages',  icon: 'message', label: 'Messages', titre: 'Messages' },
     { path: '/chauffeur/profil',    icon: 'user',    label: 'Profil',   titre: 'Mon profil' },

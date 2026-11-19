@@ -100,6 +100,19 @@ export const routes: Routes = [
         path: 'profil',
         loadComponent: () => import('./features/chauffeur/profile/chauffeur-profile.component').then(m => m.ChauffeurProfileComponent)
       },
+      // Un chauffeur peut aussi commander une place sur le trajet d'un autre chauffeur.
+      {
+        path: 'nouvelle-course',
+        loadComponent: () => import('./features/client/new-course/new-course.component').then(m => m.NewCourseComponent)
+      },
+      {
+        path: 'historique',
+        loadComponent: () => import('./features/client/history/history.component').then(m => m.HistoryComponent)
+      },
+      {
+        path: 'remboursement',
+        loadComponent: () => import('./features/client/remboursement/remboursement.component').then(m => m.RemboursementComponent)
+      },
       {
        path: 'messages',
        loadComponent: () => import('./features/client/messages/messages.component').then(m => m.MessagesComponent)
@@ -145,6 +158,27 @@ export const routes: Routes = [
       {
         path: 'remboursements',
         loadComponent: () => import('./features/admin/remboursements/remboursements.component').then(m => m.RemboursementsComponent)
+      },
+      // Un administrateur peut aussi commander une place sur un trajet.
+      {
+        path: 'nouvelle-course',
+        loadComponent: () => import('./features/client/new-course/new-course.component').then(m => m.NewCourseComponent)
+      },
+      {
+        path: 'historique',
+        loadComponent: () => import('./features/client/history/history.component').then(m => m.HistoryComponent)
+      },
+      {
+        path: 'remboursement',
+        loadComponent: () => import('./features/client/remboursement/remboursement.component').then(m => m.RemboursementComponent)
+      },
+      {
+        path: 'messages',
+        loadComponent: () => import('./features/client/messages/messages.component').then(m => m.MessagesComponent)
+      },
+      {
+        path: 'suivi/:id',
+        loadComponent: () => import('./features/client/tracking/tracking.component').then(m => m.TrackingComponent)
       }
     ]
   },

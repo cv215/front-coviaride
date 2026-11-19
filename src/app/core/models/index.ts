@@ -144,6 +144,12 @@ export interface Reservation {
   dateAnnulation?: string;
   motifAnnulation?: string;
   note?: number;
+  /** Le client a signalé un problème : le versement final au chauffeur est suspendu. */
+  plainteOuverte?: boolean;
+  /** 40 % + 10 % déjà versés (ou remboursés). */
+  paiementFinalVerse?: boolean;
+  /** Fin du trajet déclarée par le chauffeur : le versement final suit 4 h après sans plainte. */
+  dateArriveeDeclaree?: string;
 }
 
 // ─── PAIEMENT ─────────────────────────────────────────────────────────────────

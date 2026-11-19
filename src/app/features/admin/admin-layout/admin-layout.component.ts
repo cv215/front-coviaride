@@ -47,6 +47,8 @@ export class AdminLayoutComponent implements OnInit {
   });
   readonly navSecondaire: ShellNavItem[] = [
     { path: '/admin/commissions', icon: 'tag',   label: 'Commissions',     titre: 'Commissions' },
+    { path: '/admin/historique',  icon: 'history', label: 'Mes réservations', titre: 'Mes réservations' },
+    { path: '/admin/nouvelle-course', icon: 'plus', label: 'Réserver un trajet', titre: 'Réserver un trajet' },
     { path: '/admin/admins',      icon: 'shield', label: 'Administrateurs', titre: 'Administrateurs' },
   ];
   navMobile = computed<ShellNavItem[]>(() => {

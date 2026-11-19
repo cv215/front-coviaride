@@ -20,7 +20,7 @@
     </div>
     @if (wallet()?.soldeBloque) {
       <div class="lx-muted" style="font-size:.78rem;margin-top:.35rem">
-        dont {{ wallet()!.soldeBloque | number:'1.0-0' }} FCFA bloqués pour vos réservations en cours
+        + {{ wallet()!.soldeBloque | number:'1.0-0' }} FCFA sur le compte bloqué (trajets en cours, non retirables)
       </div>
     }
   </section>
@@ -165,9 +165,9 @@
     <aside class="lx-card secure">
       <span class="lx-icon-tile is-gold"><lx-icon name="shield-check" /></span>
       <h3 class="lx-card-title" style="margin:.9rem 0 .4rem">Paiement protégé</h3>
-      <p style="margin:0;font-size:.85rem;line-height:1.6">Le montant d'une course n'est versé au chauffeur qu'après votre embarquement puis votre arrivée.</p>
+      <p style="margin:0;font-size:.85rem;line-height:1.6">À l'acceptation, le prix est versé sur le compte bloqué du chauffeur : il ne peut le retirer qu'au fil du trajet — 50 % quand vous confirmez le départ, 40 % à l'arrivée (ou 4 h après sans plainte), 10 % de commission plateforme.</p>
       <div class="secure-list">
-        <span><lx-icon name="check-circle" [size]="14" /> Fonds bloqués jusqu'à l'acceptation</span>
+        <span><lx-icon name="check-circle" [size]="14" /> Aucun prélèvement avant l'acceptation</span>
         <span><lx-icon name="check-circle" [size]="14" /> Retrait validé par code email</span>
       </div>
     </aside>
