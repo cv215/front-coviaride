@@ -295,6 +295,29 @@ export interface DashboardAdmin {
   inscritsSemaine?: number;
   utilisateursActifs30J?: number;
   utilisateursInactifs30J?: number;
+  /** Chiffres instantanés de la communauté. */
+  enDirect?: {
+    connectes: number;
+    inscrits: number;
+    nouveaux7J: number;
+    enTrajet: number;
+    passagersEnRoute: number;
+    chauffeursEnRoute: number;
+    partis: number;
+    partisCeMois: number;
+    actifs30J: number;
+    inactifs30J: number;
+  };
+  /** Argent détenu par la plateforme pour les utilisateurs, et revenus. */
+  finances?: {
+    soldeDisponibleUtilisateurs: number;
+    soldeBloqueUtilisateurs: number;
+    soldeTotalUtilisateurs: number;
+    soldePlateforme: number;
+    soldeTotal: number;
+    commissionsTrajets: number;
+    fraisRetraits: number;
+  };
   activiteMois?: {
     trajetsCrees: number;
     trajetsTermines: number;

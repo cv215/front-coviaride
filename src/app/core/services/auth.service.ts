@@ -40,6 +40,11 @@ export class AuthService {
   }
 
   /** Vérifie le mot de passe actuel côté serveur avant d'enregistrer le nouveau. */
+  /** Le titulaire ferme son compte (quitte l'application). */
+  fermerCompte(motDePasse: string, motif?: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/compte/fermeture`, { motDePasse, motif });
+  }
+
   changerMotDePasse(ancienMotDePasse: string, nouveauMotDePasse: string): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(`${environment.apiUrl}/auth/compte/mot-de-passe`, { ancienMotDePasse, nouveauMotDePasse });
   }

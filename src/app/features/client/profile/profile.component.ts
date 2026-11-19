@@ -1,3 +1,4 @@
+import { FermerCompteComponent } from '../../../shared/components/fermer-compte/fermer-compte.component';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {ReactiveFormsModule,FormBuilder,Validators,AbstractControl} from '@angular/forms';
@@ -12,7 +13,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterLink, IconComponent],
+  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterLink, IconComponent, FermerCompteComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
 })

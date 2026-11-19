@@ -3,7 +3,7 @@ import { ToastService, fcfa, messageErreur } from '../../../core/services/toast.
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
-import { PortefeuilleService } from '../../../core/services/portefeuille.service';
+import { PortefeuilleService, fraisRetrait } from '../../../core/services/portefeuille.service';
 import { Portefeuille, Transaction } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
@@ -55,7 +55,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
     <form class="lx-card lx-stack" [formGroup]="retraitForm" (ngSubmit)="retirer()">
       <div>
         <h3 class="lx-card-title" style="margin-bottom:.25rem">Retirer mes gains</h3>
-        <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · validation par code envoyé par email.</p>
+        <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · commission de 3 % · validation par code envoyé par email.</p>
       </div>
       <div>
         <span class="lx-label">Opérateur</span>
@@ -76,6 +76,13 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
         </div>
       </div>
       @if (depasseSolde()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> Montant supérieur à votre solde disponible.</div> }
+      @else if ((retraitForm.value.montant ?? 0) >= 1000) {
+        <div class="frais">
+          <div><span>Débité de votre compte disponible</span><strong>{{ retraitForm.value.montant | number:'1.0-0' }} FCFA</strong></div>
+          <div><span>Commission 3 %</span><strong>− {{ frais() | number:'1.0-0' }} FCFA</strong></div>
+          <div class="net"><span>Vous recevez</span><strong>{{ (retraitForm.value.montant ?? 0) - frais() | number:'1.0-0' }} FCFA</strong></div>
+        </div>
+      }
 
       @if (retraitCodeRecu()) {
         <div [formGroup]="retraitValidationForm">
@@ -169,6 +176,8 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
     .op { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; cursor: pointer; background: var(--lx-secondary); color: var(--lx-fg);
       border: 1px solid transparent; border-radius: var(--lx-r-md); font-size: 0.85rem; font-weight: 500; text-align: left;
       &:hover { background: #232736; } &.is-active { border-color: rgba(200, 146, 42, 0.55); background: rgba(200, 146, 42, 0.08); } }
+    .frais { background: var(--lx-secondary); border-radius: var(--lx-r-md); padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem;
+      > div { display: flex; justify-content: space-between; gap: 1rem; } .net { border-top: 1px solid var(--lx-border); padding-top: 0.4rem; font-weight: 600; } }
     .op-logo { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.68rem; flex-shrink: 0;
       &.mtn { background: #ffc300; color: #111; } &.orange { background: #ff6b00; color: #fff; } }
     .form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
@@ -223,6 +232,8 @@ export class EarningsComponent implements OnInit {
     this.walletSvc.get(u.compteId).subscribe({ next: w => this.wallet.set(w), error: err => this.toast.error('Portefeuille indisponible', err) });
     this.walletSvc.historique(u.compteId).subscribe({ next: p => this.transactions.set(p.content ?? []), error: () => {} });
   }
+
+  frais(): number { return fraisRetrait(Number(this.retraitForm.value.montant ?? 0)); }
 
   depasseSolde(): boolean {
     const m = Number(this.retraitForm.value.montant ?? 0);
@@ -280,7 +291,8 @@ export class EarningsComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.retraitSuccess.set('');
-        this.toast.success('Retrait effectué', `${fcfa(this.retraitForm.value.montant)} envoyés vers ${this.retraitForm.value.numeroTelephone}`);
+        const m = Number(this.retraitForm.value.montant ?? 0);
+        this.toast.success('Retrait effectué', `${fcfa(m - fraisRetrait(m))} envoyés vers ${this.retraitForm.value.numeroTelephone} (frais 3 % : ${fcfa(fraisRetrait(m))})`);
         this.retraitLoading.set(false); this.retraitCodeRecu.set(false);
         this.retraitValidationForm.reset({ email: u.email }); this.retraitForm.reset({ moyen: 'MTN_MOMO' });
         this.charger();

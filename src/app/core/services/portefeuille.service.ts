@@ -4,6 +4,12 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Portefeuille, Transaction, MobileMoneyRequest, Page, RetraitAvecCodeValidationRequest } from '../models';
 
+/** Commission de la plateforme sur chaque retrait (identique au serveur), arrondie au franc. */
+export const TAUX_FRAIS_RETRAIT = 0.03;
+export function fraisRetrait(montant: number): number {
+  return Math.round((Number(montant) || 0) * TAUX_FRAIS_RETRAIT);
+}
+
 @Injectable({ providedIn: 'root' })
 export class PortefeuilleService {
   private base = `${environment.apiUrl}/portefeuilles`;

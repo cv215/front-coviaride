@@ -88,7 +88,7 @@
       <form class="lx-card lx-stack" [formGroup]="retraitForm" (ngSubmit)="retirer()">
         <div>
           <h3 class="lx-card-title" style="margin-bottom:.25rem">Retirer des fonds</h3>
-          <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · commission de 10 % · validation par code email.</p>
+          <p style="margin:0;font-size:.8rem">Minimum 1 000 FCFA · commission de 3 % · validation par code email.</p>
         </div>
 
         <div>
@@ -127,7 +127,7 @@
         @if (montantNet() > 0) {
           <div class="summary">
             <div><span>Montant demandé</span><strong>{{ retraitForm.value.montant | number:'1.0-0' }} FCFA</strong></div>
-            <div class="minus"><span>Commission 10 %</span><strong>− {{ commission() | number:'1.0-0' }} FCFA</strong></div>
+            <div class="minus"><span>Commission 3 %</span><strong>− {{ commission() | number:'1.0-0' }} FCFA</strong></div>
             <div class="net"><span>Vous recevez</span><strong>{{ montantNet() | number:'1.0-0' }} FCFA</strong></div>
           </div>
         }

@@ -38,6 +38,60 @@ interface Barre { semaine: string; courses: number; pourcentage: number; }
   } @else if (stats(); as s) {
     @if (errorMessage()) { <div class="lx-alert lx-alert-error"><lx-icon name="alert" /> {{ errorMessage() }}</div> }
 
+    <!-- En direct -->
+    <section class="lx-rise">
+      <div class="lx-section-head"><h3>En direct</h3><span class="lx-muted" style="font-size:.75rem">connectés = actifs dans l'application ces 2 dernières minutes</span></div>
+      <div class="lx-stats">
+        <div class="lx-stat">
+          <span class="live-dot" aria-hidden="true"></span>
+          <div class="lx-stat-value">{{ s.enDirect?.connectes ?? 0 | number }}</div>
+          <div class="lx-stat-label">connectés maintenant</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="users" style="color:var(--lx-primary)" />
+          <div class="lx-stat-value">{{ s.enDirect?.inscrits ?? s.totalUtilisateurs | number }}</div>
+          <div class="lx-stat-label">inscrits · {{ s.enDirect?.nouveaux7J ?? s.inscritsSemaine ?? 0 }} cette semaine</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="navigation" style="color:var(--lx-blue)" />
+          <div class="lx-stat-value">{{ s.enDirect?.enTrajet ?? 0 | number }}</div>
+          <div class="lx-stat-label">en plein trajet · {{ s.enDirect?.chauffeursEnRoute ?? 0 }} chauffeur(s), {{ s.enDirect?.passagersEnRoute ?? 0 }} passager(s)</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="log-out" style="color:var(--lx-red)" />
+          <div class="lx-stat-value">{{ s.enDirect?.partis ?? 0 | number }}</div>
+          <div class="lx-stat-label">partis (comptes fermés) · {{ s.enDirect?.partisCeMois ?? 0 }} sur 30 j</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Finances -->
+    <section class="lx-rise">
+      <div class="lx-section-head"><h3>Finances</h3></div>
+      <div class="lx-stats">
+        <div class="lx-stat">
+          <lx-icon name="wallet" style="color:var(--lx-amber)" />
+          <div class="lx-stat-value money">{{ s.finances?.soldeTotal ?? 0 | number:'1.0-0' }} F</div>
+          <div class="lx-stat-label">solde total sur la plateforme</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="users" style="color:var(--lx-emerald)" />
+          <div class="lx-stat-value money">{{ s.finances?.soldeTotalUtilisateurs ?? 0 | number:'1.0-0' }} F</div>
+          <div class="lx-stat-label">aux utilisateurs · {{ s.finances?.soldeDisponibleUtilisateurs ?? 0 | number:'1.0-0' }} disponibles, {{ s.finances?.soldeBloqueUtilisateurs ?? 0 | number:'1.0-0' }} bloqués</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="tag" style="color:var(--lx-primary)" />
+          <div class="lx-stat-value money">{{ s.finances?.commissionsTrajets ?? s.totalCommissions | number:'1.0-0' }} F</div>
+          <div class="lx-stat-label">commissions trajets (10 %)</div>
+        </div>
+        <div class="lx-stat">
+          <lx-icon name="arrow-down-left" style="color:var(--lx-blue)" />
+          <div class="lx-stat-value money">{{ s.finances?.fraisRetraits ?? 0 | number:'1.0-0' }} F</div>
+          <div class="lx-stat-label">frais de retrait (3 %) · caisse plateforme {{ s.finances?.soldePlateforme ?? 0 | number:'1.0-0' }} F</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Indicateurs principaux -->
     <section class="lx-stats lx-rise">
       <div class="lx-stat">
@@ -58,7 +112,7 @@ interface Barre { semaine: string; courses: number; pourcentage: number; }
       <div class="lx-stat">
         <lx-icon name="wallet" style="color:var(--lx-amber)" />
         <div class="lx-stat-value">{{ s.revenusPlateforme | number:'1.0-0' }} F</div>
-        <div class="lx-stat-label">revenus · plateforme</div>
+        <div class="lx-stat-label">revenus · commissions + frais de retrait</div>
       </div>
     </section>
 
@@ -142,6 +196,9 @@ interface Barre { semaine: string; courses: number; pourcentage: number; }
   }
 </div>`,
   styles: [`
+    .lx-stat-value.money { font-size: clamp(1.05rem, 2.2vw, 1.45rem); white-space: nowrap; overflow: visible; text-overflow: clip; }
+    .live-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lx-emerald); box-shadow: 0 0 0 4px rgba(16,185,129,.18); display: inline-block; margin: 4px; animation: lx-pulse 2s ease-in-out infinite; }
+    @keyframes lx-pulse { 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); } }
     :host { display: block; }
     .dash { display: flex; flex-direction: column; gap: 1.75rem; }
     .cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }

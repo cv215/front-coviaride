@@ -1,3 +1,4 @@
+import { FermerCompteComponent } from '../../../shared/components/fermer-compte/fermer-compte.component';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -18,7 +19,7 @@ const SUPPORT_ID = 1;
 @Component({
   selector: 'app-chauffeur-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent, ApercuDocumentComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent, ApercuDocumentComponent, FermerCompteComponent],
   template: `
 <div class="lx-page profile">
 
@@ -172,6 +173,7 @@ const SUPPORT_ID = 1;
         <lx-icon name="log-out" /><span class="lx-list-body">Se déconnecter</span>
       </button>
     </div>
+    <lx-fermer-compte />
   }
 </div>
   `,

@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
-import { PortefeuilleService } from '../../../core/services/portefeuille.service';
+import { PortefeuilleService, fraisRetrait } from '../../../core/services/portefeuille.service';
 import { messageErreur } from '../../../core/services/toast.service';
 import { Portefeuille } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -90,7 +90,7 @@ export class PortefeuilleClientComponent implements OnInit {
 
   calculerMontantNet() {
     const m = this.retraitForm.value.montant || 0;
-    const comm = m * 0.10;
+    const comm = fraisRetrait(m);
     this.commission.set(comm);
     this.montantNet.set(m - comm);
   }
