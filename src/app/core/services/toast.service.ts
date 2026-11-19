@@ -49,6 +49,7 @@ export function messageErreur(err: unknown, defaut = 'Une erreur est survenue. R
     if (typeof body === 'string' && body.length < 200) return body;
     const header = err.headers?.get('X-Error-Message');
     if (header) return header;
+    if (err.status === 429) return 'Trop de tentatives. Patientez une minute avant de réessayer.';
     if (err.status === 401) return 'Session expirée, reconnectez-vous.';
     if (err.status === 403) return "Vous n'avez pas les droits pour cette action.";
     if (err.status === 404) return 'Ressource introuvable.';

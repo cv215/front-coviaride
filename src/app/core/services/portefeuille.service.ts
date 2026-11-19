@@ -22,6 +22,11 @@ export class PortefeuilleService {
     return this.http.post<Transaction>(`${this.base}/${utilisateurId}/retrait`, req);
   }
 
+  /** Envoie par email un code à 6 chiffres lié à ce montant et à ce numéro (valable 10 min). */
+  demanderCodeRetrait(utilisateurId: number, req: MobileMoneyRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/${utilisateurId}/retrait/code`, req);
+  }
+
   retraitAvecCodeValidation(utilisateurId: number, req: RetraitAvecCodeValidationRequest): Observable<Transaction> {
     return this.http.post<Transaction>(`${this.base}/${utilisateurId}/retrait/verification-email`, req);
   }

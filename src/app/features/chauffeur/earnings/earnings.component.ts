@@ -248,15 +248,19 @@ export class EarningsComponent implements OnInit {
   demanderCodeValidation() {
     const u = this.auth.currentUser(); if (!u || this.retraitForm.invalid) return;
     this.retraitCodeLoading.set(true); this.retraitError.set('');
-    this.auth.demanderResetPassword({ email: u.email }).subscribe({
-      next: () => {
+    this.walletSvc.demanderCodeRetrait(u.compteId, {
+      moyen: this.retraitForm.value.moyen as 'MTN_MOMO' | 'ORANGE_MONEY',
+      numeroTelephone: this.retraitForm.value.numeroTelephone!,
+      montant: this.retraitForm.value.montant!
+    }).subscribe({
+      next: r => {
         this.retraitCodeRecu.set(true);
         this.retraitValidationForm.patchValue({ email: u.email });
-        this.retraitSuccess.set('Un code de validation a été envoyé à votre email.');
+        this.retraitSuccess.set(r?.message || 'Un code de validation a été envoyé à votre email.');
         this.retraitCodeLoading.set(false);
       },
-      error: () => {
-        this.retraitError.set('Impossible d’envoyer le code de validation.');
+      error: err => {
+        this.retraitError.set(messageErreur(err, 'Impossible d’envoyer le code de validation.'));
         this.retraitCodeLoading.set(false);
       }
     });

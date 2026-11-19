@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { PortefeuilleService } from '../../../core/services/portefeuille.service';
+import { messageErreur } from '../../../core/services/toast.service';
 import { Portefeuille } from '../../../core/models';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
@@ -34,7 +35,7 @@ export class PortefeuilleClientComponent implements OnInit {
 
   retraitValidationForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
-    codeValidation: ['', [Validators.required, Validators.minLength(4)]]
+    codeValidation: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
   });
 
   depotForm = this.fb.group({
@@ -128,15 +129,19 @@ export class PortefeuilleClientComponent implements OnInit {
 
     this.retraitCodeLoading.set(true);
     this.retraitError.set('');
-    this.auth.demanderResetPassword({ email: u.email }).subscribe({
-      next: () => {
+    this.walletSvc.demanderCodeRetrait(u.compteId, {
+      moyen: this.operateurRetrait(),
+      numeroTelephone: this.retraitForm.value.numeroTelephone!,
+      montant: this.retraitForm.value.montant!
+    }).subscribe({
+      next: r => {
         this.retraitCodeRecu.set(true);
         this.retraitValidationForm.patchValue({ email: u.email });
-        this.retraitSuccess.set('Un code de validation a été envoyé à votre email.');
+        this.retraitSuccess.set(r?.message || 'Un code de validation a été envoyé à votre email.');
         this.retraitCodeLoading.set(false);
       },
-      error: () => {
-        this.retraitError.set('Impossible d’envoyer le code de validation à votre email.');
+      error: err => {
+        this.retraitError.set(messageErreur(err, 'Impossible d’envoyer le code de validation à votre email.'));
         this.retraitCodeLoading.set(false);
       }
     });
