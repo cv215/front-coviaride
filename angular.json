@@ -31,9 +31,18 @@
                 { "type": "initial", "maximumWarning": "500kb", "maximumError": "1mb" },
                 { "type": "anyComponentStyle", "maximumWarning": "12kb", "maximumError": "24kb" }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "fileReplacements": [
+                { "replace": "src/environments/environment.ts", "with": "src/environments/environment.prod.ts" }
+              ]
             },
-            "development": { "optimization": false, "extractLicenses": false, "sourceMap": true }
+            "development": { "optimization": false, "extractLicenses": false, "sourceMap": true },
+            "render": {
+              "optimization": false, "extractLicenses": false, "sourceMap": true,
+              "fileReplacements": [
+                { "replace": "src/environments/environment.ts", "with": "src/environments/environment.render.ts" }
+              ]
+            }
           },
           "defaultConfiguration": "production"
         },
@@ -41,7 +50,8 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": { "buildTarget": "courseexpress:build:production" },
-            "development": { "buildTarget": "courseexpress:build:development" }
+            "development": { "buildTarget": "courseexpress:build:development" },
+            "render": { "buildTarget": "courseexpress:build:render" }
           },
           "defaultConfiguration": "development",
           "options": { "proxyConfig": "proxy.conf.json" }
