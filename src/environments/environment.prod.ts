@@ -3,6 +3,6 @@
 // Tunnel rapide : l'adresse change à chaque relance -> la recopier ici depuis back-coviaride/local/.run/tunnel-url.txt
 export const environment = {
   production: true,
-  apiUrl: 'https://tutorials-serves-expanded-budget.trycloudflare.com/api',
-  wsUrl: 'wss://tutorials-serves-expanded-budget.trycloudflare.com/ws-chat'
+  apiUrl: 'https://librarian-sought-active-yes.trycloudflare.com/api',
+  wsUrl: 'wss://librarian-sought-active-yes.trycloudflare.com/ws-chat'
 };

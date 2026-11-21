@@ -1,11 +1,10 @@
 import { Component, ElementRef, HostListener, effect, inject, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ConfirmService } from '../../../core/services/confirm.service';
 
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [FormsModule],
+  imports: [],
   template: `
 @if (svc.state(); as s) {
   <div class="cd-overlay" (click)="annuler()">
@@ -15,9 +14,9 @@ import { ConfirmService } from '../../../core/services/confirm.service';
       @if (s.input; as inp) {
         <label class="cd-label">{{ inp.label }}</label>
         @if (inp.type === 'textarea') {
-          <textarea #champ class="cd-input" rows="3" [(ngModel)]="valeur" [placeholder]="inp.placeholder ?? ''"></textarea>
+          <textarea #champ class="cd-input" rows="3" [value]="valeur" (input)="valeur = $any($event.target).value" [placeholder]="inp.placeholder ?? ''"></textarea>
         } @else {
-          <input #champ class="cd-input" [type]="inp.type ?? 'text'" [(ngModel)]="valeur" [placeholder]="inp.placeholder ?? ''" (keydown.enter)="valider()">
+          <input #champ class="cd-input" [type]="inp.type ?? 'text'" [value]="valeur" (input)="valeur = $any($event.target).value" [placeholder]="inp.placeholder ?? ''" (keydown.enter)="valider()">
         }
         @if (inp.minLength && valeur.trim().length > 0 && valeur.trim().length < inp.minLength) {
           <div class="cd-err">Minimum {{ inp.minLength }} caractères.</div>

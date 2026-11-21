@@ -409,7 +409,7 @@ export class HistoryComponent implements OnInit {
       case 'embarquer':
         return `Confirmez seulement si vous êtes partis avec le chauffeur. 50 % de ${m} passeront sur son compte disponible (le reste reste bloqué jusqu'à l'arrivée).`;
       case 'arriver':
-        return `40 % de ${m} seront versés au chauffeur et 10 % de commission à la plateforme. La course sera clôturée.`;
+        return `Confirmez seulement si vous êtes bien arrivé. Le reste du paiement (${m} au total) sera versé au chauffeur et la course sera clôturée.`;
     }
   }
 

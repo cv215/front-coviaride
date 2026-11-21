@@ -1,7 +1,6 @@
 import { ApplicationConfig, LOCALE_ID } from '@angular/core';
 import { provideRouter, withViewTransitions } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 
@@ -17,7 +16,6 @@ export const appConfig: ApplicationConfig = {
       }
     })),
     provideHttpClient(withInterceptors([authInterceptor])),
-    provideAnimations(),
     // Nombres et dates au format français partout (12 500 au lieu de 12,500).
     { provide: LOCALE_ID, useValue: 'fr' }
   ]

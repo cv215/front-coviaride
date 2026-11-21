@@ -36,7 +36,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
       <div class="lx-stat-value">{{ (wallet()?.soldeBloque ?? 0) | number:'1.0-0' }} F</div>
       <div class="lx-stat-label">compte bloqué · visible, non retirable</div>
       <div class="lx-muted" style="font-size:.72rem;margin-top:.35rem;line-height:1.4">
-        50 % passent au disponible au départ confirmé par le client, 40 % à l'arrivée (ou 4 h après sans plainte). 10 % de commission plateforme.
+        Le paiement du client arrive ici dès que vous acceptez sa réservation. La moitié passe sur votre solde disponible quand le client confirme le départ, le reste à l'arrivée (ou 4 h après si le client ne signale aucun problème).
       </div>
     </section>
     <section class="lx-stat">
@@ -111,7 +111,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
     <form class="lx-card lx-stack" [formGroup]="depotForm" (ngSubmit)="deposer()">
       <div>
         <h3 class="lx-card-title" style="margin-bottom:.25rem">Déposer des fonds</h3>
-        <p style="margin:0;font-size:.8rem">Minimum 500 FCFA · aucune commission.</p>
+        <p style="margin:0;font-size:.8rem">Minimum 500 FCFA.</p>
       </div>
       <div>
         <span class="lx-label">Opérateur</span>
@@ -250,7 +250,7 @@ export class EarningsComponent implements OnInit {
     return ({
       DEPOT: 'Dépôt', RETRAIT: 'Retrait', RECEPTION_PAIEMENT: 'Paiement reçu', PAIEMENT_TRAJET: 'Paiement trajet',
       BLOCAGE_FONDS: 'Reçu sur le compte bloqué', DEBLOCAGE_50_DEPART: 'Départ · 50 % débloqués', DEBLOCAGE_50_ARRIVEE: 'Versement arrivée',
-      DEBLOCAGE_40_ARRIVEE: 'Arrivée · 40 % débloqués', PRELEVEMENT_COMMISSION: 'Commission 10 %',
+      DEBLOCAGE_40_ARRIVEE: 'Arrivée · 40 % débloqués', PRELEVEMENT_COMMISSION: 'Frais de service CoviaRide',
       RESTITUTION_PASSAGER: 'Rendu au passager', INDEMNITE_ANNULATION: "Indemnité d'annulation",
       COMMISSION_PLATEFORME: 'Commission', REMBOURSEMENT: 'Remboursement'
     } as Record<string, string>)[type] ?? type;
