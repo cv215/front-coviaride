@@ -1,7 +1,8 @@
-// Build de production (Vercel). Backend actuel : environnement de test sur Render.
-// À remplacer par l'adresse du serveur Oracle une fois le backend complet déployé.
+// Build de production (Vercel). Backend : les 12 microservices tournent sur le PC de développement,
+// seule la passerelle est publiée via un tunnel Cloudflare (back-coviaride/local/demarrer.ps1 -Tunnel).
+// Tunnel rapide : l'adresse change à chaque relance -> la recopier ici depuis back-coviaride/local/.run/tunnel-url.txt
 export const environment = {
   production: true,
-  apiUrl: 'https://coviaride-gateway-kqwt.onrender.com/api',
-  wsUrl: 'wss://coviaride-gateway-kqwt.onrender.com/ws-chat'
+  apiUrl: 'https://tutorials-serves-expanded-budget.trycloudflare.com/api',
+  wsUrl: 'wss://tutorials-serves-expanded-budget.trycloudflare.com/ws-chat'
 };
